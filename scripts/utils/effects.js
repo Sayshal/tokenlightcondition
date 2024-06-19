@@ -178,8 +178,15 @@ export class Effects {
 
     // edge case, if there are multiple effects on the token
     while (foundEffects) {
-      const dim = selected_token.actor.effects.find(e => e.label === game.i18n.localize('tokenlightcond-effect-dim'));
-      const dark = selected_token.actor.effects.find(e => e.label === game.i18n.localize('tokenlightcond-effect-dark'));
+      let dim = "";
+      let dark = "";
+      if (game.version < 12) {
+        dim = selected_token.actor.effects.find(e => e.label === game.i18n.localize('tokenlightcond-effect-dim'));
+        dark = selected_token.actor.effects.find(e => e.label === game.i18n.localize('tokenlightcond-effect-dark'));
+      } else {
+        dim = selected_token.actor.effects.find(e => e.name === game.i18n.localize('tokenlightcond-effect-dim'));
+        dark = selected_token.actor.effects.find(e => e.name === game.i18n.localize('tokenlightcond-effect-dark'));
+      }
 
       if (!dim && !dark) {
         foundEffects = false;
@@ -223,7 +230,11 @@ export class Effects {
     if (system_pf2e) {
       dark = await selected_token.actor.items.find(e => e.name === game.i18n.localize('tokenlightcond-effect-dark'));
     } else {
-      dark = await selected_token.actor.effects.find(e => e.label === game.i18n.localize('tokenlightcond-effect-dark'));
+      if (game.version < 12) {
+        dark = await selected_token.actor.effects.find(e => e.label === game.i18n.localize('tokenlightcond-effect-dark'));
+      } else {
+        dark = await selected_token.actor.effects.find(e => e.name === game.i18n.localize('tokenlightcond-effect-dark'));
+      }
     }
 
     const ce = game.dfreds?.effectInterface;
@@ -236,10 +247,6 @@ export class Effects {
           await game.dfreds.effectInterface.addEffect({ effectName: game.i18n.localize('tokenlightcond-effect-dark'), uuid: selected_token.actor.uuid });
           added = true;
         }
-      }
-      if (source === 'cub') {
-        await game.cub.applyCondition(game.i18n.localize('tokenlightcond-effect-dark'), selected_token.actor);
-        added = true;
       }
       if (source === 'ae') {
         await this.addDarkAE(selected_token);
@@ -258,7 +265,11 @@ export class Effects {
     if (system_pf2e) {
       dim = await selected_token.actor.items.find(e => e.name === game.i18n.localize('tokenlightcond-effect-dim'));
     } else {
-      dim = await selected_token.actor.effects.find(e => e.label === game.i18n.localize('tokenlightcond-effect-dim'));
+      if (game.version < 12) {
+        dim = await selected_token.actor.effects.find(e => e.label === game.i18n.localize('tokenlightcond-effect-dim'));
+      } else {
+        dim = await selected_token.actor.effects.find(e => e.name === game.i18n.localize('tokenlightcond-effect-dim'));
+      }
     }
 
     const ce = game.dfreds?.effectInterface;
@@ -269,12 +280,6 @@ export class Effects {
       if (source === 'ce') {
         if (ce) {
           await game.dfreds.effectInterface.addEffect({ effectName: game.i18n.localize('tokenlightcond-effect-dim'), uuid: selected_token.actor.uuid });
-          added = true;
-        }
-      }
-      if (source === 'cub') {
-        if (source === 'cub') {
-          await game.cub.applyCondition(game.i18n.localize('tokenlightcond-effect-dim'), selected_token.actor);
           added = true;
         }
       }
@@ -301,7 +306,12 @@ export class Effects {
 
   static async addDarkAE_dnd5e(selected_token) {
     const label = game.i18n.localize('tokenlightcond-effect-dark');
-    let dark = selected_token.actor.effects.find(e => e.label === label);
+    let dark = "";
+    if (game.version < 12) {
+      dark = selected_token.actor.effects.find(e => e.label === label);
+    } else {
+      dark = selected_token.actor.effects.find(e => e.name === label);
+    }
 
     if (!dark) {
       dark = {
@@ -341,7 +351,12 @@ export class Effects {
   static async addDimAE_dnd5e(selected_token) {
     // If we haven't found an ouside source, create the default one
     const label = game.i18n.localize('tokenlightcond-effect-dim');
-    let dim = selected_token.actor.effects.find(e => e.label === label);
+    let dim = "";
+    if (game.version < 12) {
+      dim = selected_token.actor.effects.find(e => e.label === label);
+    } else {
+      dim = selected_token.actor.effects.find(e => e.name === label);
+    }
 
     if (!dim) {
       dim = {

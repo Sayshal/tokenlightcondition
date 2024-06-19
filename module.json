@@ -7,11 +7,11 @@
       "name": "Frstrm"
     }
   ],
-  "version": "0.6.5",
+  "version": "0.7.0",
   "compatibility": {
-    "minimum": "10.291",
-    "verified": "11.306",
-    "maximum": "11"
+    "minimum": "11.315",
+    "verified": "12.327",
+    "maximum": "12"
   },
   "relationships": {
     "systems": [
@@ -19,7 +19,7 @@
         "id": "dnd5e",
         "type": "system",
         "compatibility": {
-          "verified": "3.0.4"
+          "verified": "3.1.2"
         }
       },
       {
@@ -42,9 +42,9 @@
   ],
   "url": "https://github.com/Frstrm/TokenLightCondition",
   "manifest": "https://github.com/Frstrm/TokenLightCondition/releases/latest/download/module.json",
-  "download": "https://github.com/Frstrm/TokenLightCondition/releases/download/0.6.5/TokenLightCondition.zip",
-  "changelog": "https://github.com/Frstrm/TokenLightCondition/blob/0.6.5/ChangeLog.md",
+  "download": "https://github.com/Frstrm/TokenLightCondition/releases/download/0.7.0/TokenLightCondition.zip",
+  "changelog": "https://github.com/Frstrm/TokenLightCondition/blob/0.7.0/ChangeLog.md",
   "bugs": "https://github.com/Frstrm/TokenLightCondition/issues",
-  "readme": "https://github.com/Frstrm/TokenLightCondition/blob/0.6.5/README.md",
-  "license": "https://github.com/Frstrm/TokenLightCondition/blob/0.6.5/LICENSE"
+  "readme": "https://github.com/Frstrm/TokenLightCondition/blob/0.7.0/README.md",
+  "license": "https://github.com/Frstrm/TokenLightCondition/blob/0.7.0/LICENSE"
 }

@@ -83,24 +83,29 @@ export class Lighting {
 
     if (globalConfig) {
       // check global lighting
-      let globalLight = canvas.scene.globalLight;
-      let darkness = canvas.scene.darkness;
-
+      let globalLight = false;
+      let darkness = 1;
+      if (game.version < 12) {
+        globalLight = canvas.scene.globalLight;
+        darkness = canvas.scene.darkness;
+      } else {
+        globalLight = canvas.scene.environment.globalLight.enabled;
+        darkness = canvas.scene.environment.darknessLevel;
+      }
+      
       // without mods this can be null or disabled.
-      let globalLightThreshold = canvas.scene.globalLightThreshold;
+      let globalLightThreshold = 1;
+      if (game.version < 12) {
+        globalLightThreshold = canvas.scene.globalLightThreshold;
+      } else {
+        globalLightThreshold = canvas.scene.environment.globalLight.darkness.max;
+      }
+
       // if field is empty (0-1), then the value is null, set the value to 1 for evaluation
       if (globalLightThreshold == null) {
         globalLightThreshold = 1;
       }
       let globalLightBright = true;
-
-      if (game.modules.get('perfect-vision')?.active) {
-        // globallight settings aren't established until you SAVE after accessing globalillumination panel
-        let value = canvas.scene.flags['perfect-vision'].globalLight?.bright;
-        if (value == false) {
-          globalLightBright = false;
-        }
-      }
 
       if (globalLight) {
         if (globalLightThreshold) {
@@ -118,137 +123,75 @@ export class Lighting {
       }
     }
 
-    if (game.modules.get('perfect-vision')?.active) {
-      // placed drawings with light overrides (perfect-vision)
-      let drawingArray = [];
-      if (canvas.drawings.placeables) {
-        for (const placed_drawing of canvas.drawings.placeables) {
-          if (placed_drawing.document.flags['perfect-vision']) {
-            if (placed_drawing.document.flags['perfect-vision'].enabled) {
-              let result = Core.isWithinDrawing(placed_drawing.document,selected_token);
-              if (result) {
-                drawingArray.push(placed_drawing);
-              }
-            }
-            else {
-              // drawing is not enabled
-            }
-          }
+    const negativeLights = game.settings.get('tokenlightcondition', 'negativelights');
+    if (lightLevel < 2 || negativeLights) {
+      const lightSources = [...canvas.lighting.objects.children, ...canvas.tokens.placeables];
+      const sortedLights = lightSources.sort((a,b) => (b.document.light ?? b.document.config).luminosity - (a.document.light ?? a.document.config).luminosity );
+      for (const lightSource of sortedLights) {
+        const isToken = Boolean(lightSource.light);
+        let source = null;
+        if (game.version < 12) {
+          source = isToken ? lightSource.light : lightSource.source;
+        } else {
+          source = isToken ? lightSource.light : lightSource.lightSource;
         }
-        // if a drawing is found, or if there are multiple...
-        if (drawingArray.length > 0) {
-          let toplayer = null;
-          let layerZ = -1000;
-          // sort to find the top layer token is in
-          for (const drawitem of drawingArray) {
-            if (drawitem._zIndex > layerZ) {
-              layerZ = drawitem._zIndex;
-              toplayer = drawitem;
-            }
-          }
-          // read the darkness from the top layer
-          let findDarkness = false;
-          let drawingOverride = toplayer.document.flags['perfect-vision'].darkness;
-          if (drawingOverride != null) { 
-            // found darkness, don't do anything else
-          }
-          else {
-            // find a layer with inheritance that has darkness
-            let nextLayer = toplayer; 
-            let loopCount = 0;
-            while (!findDarkness) {
-              let objectID = nextLayer.document.flags['perfect-vision'].prototype;
-              if (objectID) {
-                for (const findDrawing of canvas.drawings.placeables) {
-                  if (findDrawing.id == objectID) {
-                    nextLayer = findDrawing;
-                    drawingOverride = nextLayer.document.flags['perfect-vision'].darkness;
-                    if (drawingOverride != null) {
-                      findDarkness = true;
+        if (source) {
+          if (source.active) {
+            let tokenDistance = Core.get_calculated_distance(selected_token, source);
+            let lightDimDis = source.data.dim;
+            let lightBrtDis = source.data.bright;
+            const negativeLight = negativeLights && source.data.luminosity < 0;
+
+            if (tokenDistance <= lightDimDis || tokenDistance <= lightBrtDis) {
+              // If light has a reduced angle and possibly rotated...
+              let inLight = true;
+              const lightAngle = source.data.angle;
+              if (lightAngle < 360) {
+                let lightRotation = source.data.rotation;
+                let angle = this.get_calculated_light_angle(selected_token, lightSource);
+
+                // convert from +180/-180
+                if (angle < 0) {angle += 360;}
+
+                // find the difference between token angle and light rotation
+                let adjustedAngle = Math.abs(angle - lightRotation);
+                if (adjustedAngle > 180) {adjustedAngle = 360 - adjustedAngle;}
+                
+                // check if token is in the light wedge or not
+                if (adjustedAngle > (lightAngle / 2)) {
+                  inLight = false;
+                }
+              }
+
+              // If the token is found to be within a potential light...
+              if (inLight) {
+                let foundWall = Core.get_wall_collision(selected_token, lightSource);
+
+                if (!foundWall) {
+                  // check for dim
+                  if (tokenDistance <= lightDimDis && (lightDimDis > 0)) {
+                    if (negativeLight && lightLevel > 1) {
+                      lightLevel = 1;
+                    }
+                    else if ((lightLevel < 1) && !negativeLight) {
+                      lightLevel = 1;
+                    }
+                  }
+                  // check for bright
+                  if (tokenDistance <= lightBrtDis && (lightBrtDis > 0)) {
+                    if (negativeLight && lightLevel > 0) {
+                      lightLevel = 0;
+                    }
+                    else if ((lightLevel < 2) && !negativeLight) {
+                      lightLevel = 2;
                     }
                   }
                 }
-              } else {
-                findDarkness = true; // there is no more prototypes to search, exit
-              }
-              loopCount = loopCount + 1;
-              if (loopCount > 10) {
-                findDarkness = true; // don't get caught in a infinite loop if someone links their drawings together.
               }
             }
-          }
-          if (drawingOverride != null) { // we still don't have an override, skip
-            let drawingLightLevel = this.setLightLevel(drawingOverride);
-//            if (drawingLightLevel > lightLevel) {
-              lightLevel = drawingLightLevel;
-//            }
           }
         }
       }
-    }
-
-    const negativeLights = game.settings.get('tokenlightcondition', 'negativelights');
-    if (lightLevel < 2 || negativeLights) {
-        const lightSources = [...canvas.lighting.objects.children, ...canvas.tokens.placeables];
-        const sortedLights = lightSources.sort((a,b) => (b.document.light ?? b.document.config).luminosity - (a.document.light ?? a.document.config).luminosity );
-        for (const lightSource of sortedLights) {
-            const isToken = Boolean(lightSource.light);
-            const source = isToken ? lightSource.light : lightSource.source;
-            if (source.active) {
-                let tokenDistance = Core.get_calculated_distance(selected_token, source);
-                let lightDimDis = source.data.dim;
-                let lightBrtDis = source.data.bright;
-                const negativeLight = negativeLights && source.data.luminosity < 0;
-
-                if (tokenDistance <= lightDimDis || tokenDistance <= lightBrtDis) {
-                    // If light has a reduced angle and possibly rotated...
-                    let inLight = true;
-                    const lightAngle = source.data.angle;
-                    if (lightAngle < 360) {
-                      let lightRotation = source.data.rotation;
-                      let angle = this.get_calculated_light_angle(selected_token, lightSource);
-      
-                      // convert from +180/-180
-                      if (angle < 0) {angle += 360;}
-      
-                      // find the difference between token angle and light rotation
-                      let adjustedAngle = Math.abs(angle - lightRotation);
-                      if (adjustedAngle > 180) {adjustedAngle = 360 - adjustedAngle;}
-                      
-                      // check if token is in the light wedge or not
-                      if (adjustedAngle > (lightAngle / 2)) {
-                        inLight = false;
-                      }
-                    }
-      
-                    // If the token is found to be within a potential light...
-                    if (inLight) {
-                      let foundWall = Core.get_wall_collision(selected_token, lightSource);
-      
-                      if (!foundWall) {
-                        // check for dim
-                        if (tokenDistance <= lightDimDis && (lightDimDis > 0)) {
-                          if (negativeLight && lightLevel > 1) {
-                            lightLevel = 1;
-                          }
-                          else if ((lightLevel < 1) && !negativeLight) {
-                            lightLevel = 1;
-                          }
-                        }
-                        // check for bright
-                        if (tokenDistance <= lightBrtDis && (lightBrtDis > 0)) {
-                          if (negativeLight && lightLevel > 0) {
-                            lightLevel = 0;
-                          }
-                          else if ((lightLevel < 2) && !negativeLight) {
-                            lightLevel = 2;
-                          }
-                        }
-                      }
-                    }
-                }
-            }
-        }
     }
 
     // final results determine if effects need to be removed/applied.
@@ -282,7 +225,12 @@ export class Lighting {
       switch (lightLevel) {
         case 0:
           lightLevelText = 'dark';
-          let dark = selected_token.actor.effects.find(e => e.label === game.i18n.localize('tokenlightcond-effect-dark'));
+          let dark = "";
+          if (game.version < 12) {
+            dark = selected_token.actor.effects.find(e => e.label === game.i18n.localize('tokenlightcond-effect-dark'));
+          } else {
+            dark = selected_token.actor.effects.find(e => e.name === game.i18n.localize('tokenlightcond-effect-dark'));
+          }
           if (!dark) {
             await Effects.clearEffects(selected_token);
             await Effects.addDark(selected_token);
@@ -290,7 +238,12 @@ export class Lighting {
           break;
         case 1:
           lightLevelText = 'dim';
-          let dim = selected_token.actor.effects.find(e => e.label === game.i18n.localize('tokenlightcond-effect-dim'));
+          let dim = "";
+          if (game.version < 12) {
+            dim = selected_token.actor.effects.find(e => e.label === game.i18n.localize('tokenlightcond-effect-dim'));
+          } else {
+            dim = selected_token.actor.effects.find(e => e.name === game.i18n.localize('tokenlightcond-effect-dim'));
+          }
           if (!dim) {
             await Effects.clearEffects(selected_token);
             await Effects.addDim(selected_token);

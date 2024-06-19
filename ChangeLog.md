@@ -1,3 +1,9 @@
+### Version 0.7.0
+* module support removal
+* * removed support for Perfect Vision ( not updated to v11 )
+* * removed support for Combat Utility Belt ( not updated to v11 )
+* * attempted to clean up some version deprecation warnings
+
 ### Version 0.6.5
 * pf2e
 * * slugs updated for dim/darkness
