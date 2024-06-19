@@ -74,10 +74,6 @@ Hooks.once('ready', () => {
     defaultSource = 'ae';
   }
 
-  if (findCubDark && findCubDim) {
-    choices['cub'] = game.i18n.localize("tokenlightcond-effectSource-cub");
-    defaultSource = 'cub';
-  }
   if (findCE) {
     choices['ce'] = game.i18n.localize("tokenlightcond-effectSource-ce");
     defaultSource = 'ce';

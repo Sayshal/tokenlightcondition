@@ -67,9 +67,6 @@ These may work with some degree of success/failure.
 * * lights are treated as cyclinders, with a top and bottom, that act as ceiling and floors.
 * * Testing results around this have been varied based on other mods in use.
 
-* Drawings with lighting overrides (perfect-vision)
-* * This seems to be working correctly...
-
 ## Options
 
 ### **Console logging level**
@@ -91,12 +88,9 @@ Choose which source or application the effects are generated from.
   <li>Disable token effect (None)</li>
   <li>Token Light Condition (Active Effects)</li>
   <li>Convienent Effects (CE)</li>
-  <li>Combat Utility Belt (CUB)</li>
 </ul>
 
 None means there no effects placed on tokens, but the token Hud will still work.
-
-CUB option is only available if both Dim AND Dark conditions exist in the Lab.
 
 Convienent Effects entries are added on module load if they don't exist.
 

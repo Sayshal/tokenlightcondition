@@ -21,9 +21,8 @@
   "tokenlightcond-effect-dim-desc": "Is in 'Dim' lighting",
   "tokenlightcond-effect-light": "Light",
   "tokenlightcond-effectSource-name": "Source for lighting effect",
-  "tokenlightcond-effectSource-hint": "Where to grab the effect from when setting light condition. Will need reload after adding effect to CE or CUB",
+  "tokenlightcond-effectSource-hint": "Where to grab the effect from when setting light condition. Will need reload after adding effect to CE",
   "tokenlightcond-effectSource-ce": "Convenient Effects",
-  "tokenlightcond-effectSource-cub": "Combat Utility Belt",
   "tokenlightcond-effectSource-none": "Disable token effect",
   "tokenlightcond-effectSource-ae": "Token Light Condition"
 }
