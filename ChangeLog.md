@@ -1,3 +1,11 @@
+### Version 0.7.2
+* pf2e
+* * Fix for v12 not creating Effect Items
+* language
+* * Adding requested ru translation
+* V12
+* * Update for AfterEffect changes
+
 ### Version 0.7.0
 * module support removal
 * * removed support for Perfect Vision ( not updated to v11 )

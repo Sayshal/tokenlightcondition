@@ -47,12 +47,24 @@ export class Effects {
     const dark = game.items.find(e => e.name === game.i18n.localize('tokenlightcond-effect-dark'));
 
     if (!dim) {
-      const dimData = this.pf2eCreateDimData();
+      Core.log("Create pf2e Dim Effect Item");
+      let dimData = '';
+      if (game.version < 12) {
+        dimData = this.pf2eCreateDimData();
+      } else {
+        dimData = this.pf2eCreateDimData_v12();
+      }
       let dimItem = await Item.create(dimData);
     }
 
     if (!dark) {
-      const darkData = this.pf2eCreateDarkData();
+      Core.log("Create pf2e Dark Effect Item");
+      let darkData = '';
+      if (game.version < 12) {
+        darkData = this.pf2eCreateDarkData();
+      } else {
+        darkData = this.pf2eCreateDarkData_v12();
+      }
       let darkItem = await Item.create(darkData);
     }
   }
@@ -158,6 +170,90 @@ export class Effects {
         slug: `tokenlightcondition-dark`,
       },
       flags: {}
+    }
+
+    return dark;
+  }
+
+  static pf2eCreateDimData_v12() {
+    const dim = {
+      "name": game.i18n.localize('tokenlightcond-effect-dim'),
+      "type": 'effect',
+      "effects": [],
+      "system": {
+        "description": {
+          "gm": "",
+          "value": game.i18n.localize('tokenlightcond-effect-dim-desc')
+        },
+        "rules": [
+          {
+            "key": "RollOption",
+            "option": "lighting:dim-light"
+          }
+        ],
+        "slug": `tokenlightcondition-dim`,
+        "traits": {
+          "otherTags": [],
+          "value": []
+        },
+        "level": {
+          "value": 0
+        },
+        "duration": {
+          "value": 1,
+          "unit": 'unlimited',
+          "expiry": 'turn-start',
+          "sustained": false
+        },
+        "tokenIcon": { "show": true },
+        "badge": null,
+        "context": null,
+        "unidentified": true,
+      },
+      "img": 'systems/pf2e/icons/default-icons/character.svg',
+      "flags": {}
+    }
+
+    return dim
+  }
+
+  static pf2eCreateDarkData_v12() {
+    const dark = {
+      "name": game.i18n.localize('tokenlightcond-effect-dark'),
+      "type": 'effect',
+      "effects": [],
+      "system": {
+        "description": {
+          "gm": "",
+          "value": game.i18n.localize('tokenlightcond-effect-dark-desc')
+        },
+        "rules": [
+          {
+            "key": "RollOption",
+            "option": "lighting:darkness"
+          }
+        ],
+        "slug": `tokenlightcondition-dark`,
+        "traits": {
+          "otherTags": [],
+          "value": []
+        },
+        "level": {
+          "value": 0
+        },
+        "duration": {
+          "value": 1,
+          "unit": 'unlimited',
+          "expiry": 'turn-start',
+          "sustained": false
+        },
+        "tokenIcon": { "show": true },
+        "badge": null,
+        "context": null,
+        "unidentified": true,
+      },
+      "img": 'systems/pf2e/icons/default-icons/ancestry.svg',
+      "flags": {}
     }
 
     return dark;
@@ -314,15 +410,28 @@ export class Effects {
     }
 
     if (!dark) {
-      dark = {
-        label: label,
-        icon: this.darkIcon,
-        changes: [],
-        flags: { convenientDescription: game.i18n.localize('tokenlightcond-effect-dark-desc') },
-      };
+      if (game.version < 12) {
+        dark = {
+          label: label,
+          icon: this.darkIcon,
+          changes: [],
+          flags: { convenientDescription: game.i18n.localize('tokenlightcond-effect-dark-desc') },
+        };
+      } else {
+        dark = {
+          name: label,
+          icon: this.darkIcon,
+          description: game.i18n.localize('tokenlightcond-effect-dark-desc'),
+          flags: {},
+          statuses: [label.toLowerCase()],
+          changes: [],
+        };
+      }
     }
 
-    dark.flags['core.statusId'] = '1';
+    if (game.version < 12) {
+      dark.flags['core.statusId'] = '1';
+    }
     await selected_token.actor.createEmbeddedDocuments('ActiveEffect', [dark]);
   }
 
@@ -331,10 +440,12 @@ export class Effects {
     let dark = selected_token.actor.items.find(e => e.name === label);
 
     if (!dark) {
-      dark = game.items.find(e => e.name === game.i18n.localize('tokenlightcond-effect-dark'));
+      dark = game.items.find(e => e.name === label);
     }
 
-    dark.flags['core.statusId'] = '1';
+    if (game.version < 12) {
+      dark.flags['core.statusId'] = '1';
+    }
     await selected_token.actor.createEmbeddedDocuments('Item', [dark]);
   }
 
@@ -359,15 +470,28 @@ export class Effects {
     }
 
     if (!dim) {
-      dim = {
-        label: label,
-        icon: this.dimIcon,
-        changes: [],
-        flags: { convenientDescription: game.i18n.localize('tokenlightcond-effect-dim-desc') },
-      };
+      if (game.version < 12) {
+        dim = {
+          label: label,
+          icon: this.dimIcon,
+          changes: [],
+          flags: { convenientDescription: game.i18n.localize('tokenlightcond-effect-dim-desc') },
+        };
+      } else {
+        dim = {
+          name: label,
+          icon: this.dimIcon,
+          description: game.i18n.localize('tokenlightcond-effect-dim-desc'),
+          flags: {},
+          statuses: [label.toLowerCase()],
+          changes: [],
+        };
+      }
     }
 
-    dim.flags['core.statusId'] = '1';
+    if (game.version < 12) {
+      dim.flags['core.statusId'] = '1';
+    }
     await selected_token.actor.createEmbeddedDocuments('ActiveEffect', [dim]);
   }
 
@@ -377,10 +501,12 @@ export class Effects {
     let dim = selected_token.actor.items.find(e => e.name === label);
 
     if (!dim) {
-      dim = game.items.find(e => e.name === game.i18n.localize('tokenlightcond-effect-dim'));
+      dim = game.items.find(e => e.name === label);
     }
 
-    dim.flags['core.statusId'] = '1';
+    if (game.version < 12) {
+      dim.flags['core.statusId'] = '1';
+    }
     await selected_token.actor.createEmbeddedDocuments('Item', [dim]);
   }
 }
