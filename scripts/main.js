@@ -49,26 +49,6 @@ Hooks.on('renderTokenHUD', (tokenHUD, html, app) => {
   }
 });
 
-Hooks.on('renderSettingsConfig', (app, html, data) => {
-  try {
-    // Create debug header
-    const debugGroup = document.createElement('div');
-    debugGroup.className = 'form-group group-header';
-    debugGroup.textContent = game.i18n.localize('tokenlightcond-config-debug');
-    const logLevelGroup = html.querySelector('[name="tokenlightcondition.logLevel"]')?.closest('.form-group');
-    if (logLevelGroup) logLevelGroup.parentNode.insertBefore(debugGroup, logLevelGroup);
-
-    // Create general header
-    const generalGroup = document.createElement('div');
-    generalGroup.className = 'form-group group-header';
-    generalGroup.textContent = game.i18n.localize('tokenlightcond-config-general');
-    const showTokenHudGroup = html.querySelector('[name="tokenlightcondition.showTokenHud"]')?.closest('.form-group');
-    if (showTokenHudGroup) showTokenHudGroup.parentNode.insertBefore(generalGroup, showTokenHudGroup);
-  } catch (error) {
-    console.error('TokenLightCondition | Error in renderSettingsConfig:', error);
-  }
-});
-
 export class TokenLightCondition {
   /**
    * Add the token light condition toggle to the lighting controls

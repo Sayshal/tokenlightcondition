@@ -24,20 +24,6 @@ Hooks.once('ready', () => {
   const moduleVersion = module.version;
   console.log(`tokenlightcondition | Initializing ${moduleVersion}`);
 
-  game.settings.register('tokenlightcondition', 'logLevel', {
-    name: game.i18n.localize('tokenlightcond-config-logLevel-name'),
-    hint: game.i18n.localize('tokenlightcond-config-logLevel-hint'),
-    scope: 'client',
-    config: true,
-    type: String,
-    choices: {
-      none: game.i18n.localize('tokenlightcond-config-logLevel-none-choice'),
-      debug: game.i18n.localize('tokenlightcond-config-logLevel-debuglevel-choice'),
-      log: game.i18n.localize('tokenlightcond-config-logLevel-loglevel-choice')
-    },
-    default: 'none'
-  });
-
   game.settings.register('tokenlightcondition', 'showTokenHud', {
     name: game.i18n.localize('tokenlightcond-config-showTokenHud-name'),
     hint: game.i18n.localize('tokenlightcond-config-showTokenHud-hint'),
