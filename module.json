@@ -1,17 +1,20 @@
-{   
+{
   "id": "tokenlightcondition",
-  "title": "Token Light Condition",   
-  "description": "Determine Token lighting for visibility rules usage.",   
+  "title": "Token Light Condition",
+  "description": "Determine Token lighting for visibility rules usage.",
   "authors": [
+    {
+      "discord": "Tyler",
+      "name": "Tyler",
+      "url": "https://github.com/Sayshal"
+    },
     {
       "name": "Frstrm"
     }
   ],
-  "version": "0.7.3",
+  "version": "",
   "compatibility": {
-    "minimum": "11.315",
-    "verified": "12",
-    "maximum": "12"
+    "verified": "13"
   },
   "relationships": {
     "systems": [
@@ -19,7 +22,7 @@
         "id": "dnd5e",
         "type": "system",
         "compatibility": {
-          "verified": "3.3.1"
+          "verified": "5.1.0"
         }
       },
       {
@@ -29,10 +32,7 @@
     ]
   },
   "socket": true,
-  "esmodules": [
-    "./scripts/config.js",
-    "./scripts/main.js"
-  ],
+  "esmodules": ["./scripts/config.js", "./scripts/main.js"],
   "languages": [
     {
       "lang": "en",
@@ -47,9 +47,9 @@
   ],
   "url": "https://github.com/Frstrm/TokenLightCondition",
   "manifest": "https://github.com/Frstrm/TokenLightCondition/releases/latest/download/module.json",
-  "download": "https://github.com/Frstrm/TokenLightCondition/releases/download/0.7.3/TokenLightCondition.zip",
-  "changelog": "https://github.com/Frstrm/TokenLightCondition/blob/0.7.3/ChangeLog.md",
+  "download": "",
+  "changelog": "https://github.com/Frstrm/TokenLightCondition/releases",
   "bugs": "https://github.com/Frstrm/TokenLightCondition/issues",
-  "readme": "https://github.com/Frstrm/TokenLightCondition/blob/0.7.3/README.md",
-  "license": "https://github.com/Frstrm/TokenLightCondition/blob/0.7.3/LICENSE"
+  "readme": "https://github.com/Frstrm/TokenLightCondition/tree/dev?tab=readme-ov-file",
+  "license": "https://github.com/Frstrm/TokenLightCondition/tree/dev?tab=MIT-1-ov-file"
 }
