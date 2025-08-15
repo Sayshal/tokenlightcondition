@@ -201,6 +201,7 @@ export class Effects {
       const cprEffect = this._findCPREffect(effectType);
       if (cprEffect) {
         const effectData = cprEffect.toObject();
+        effectData.statuses = [effectType];
         const effect = await ActiveEffect.create(effectData, { keepId: true, parent: selectedToken.actor });
         console.log(`TokenLightCondition | Created temporary CPR effect "${cprEffect.name}":`, effect);
         return effect;
