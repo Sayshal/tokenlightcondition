@@ -105,15 +105,33 @@ export class LightingManager {
     this.processingTokens.add(selectedToken.id);
     try {
       let lightLevel = 0;
+      let globalIlluminationActive = false;
       const globalConfig = game.settings.get(CONSTANTS.MODULE_ID, 'globalIllumination');
+      // Check global illumination first
       if (globalConfig) {
         const globalLight = canvas.scene.environment.globalLight.enabled;
         const darkness = canvas.scene.environment.darknessLevel;
         const globalLightThreshold = canvas.scene.environment.globalLight.darkness.max ?? 1;
-        if (globalLight && globalLightThreshold && darkness <= globalLightThreshold) lightLevel = 2;
+        if (globalLight && globalLightThreshold && darkness <= globalLightThreshold) {
+          // Global illumination is active - assume bright light everywhere
+          lightLevel = 2;
+          globalIlluminationActive = true;
+          console.log('TokenLightCondition | Global illumination active, setting to bright light');
+          // Check if token is under a light-restricting tile
+          if (this._isTokenUnderLightRestrictingTile(selectedToken)) {
+            console.log('TokenLightCondition | Token under light-restricting tile, overriding to dark');
+            lightLevel = 0; // Override to dark
+            globalIlluminationActive = false; // Allow individual lights to potentially override
+          }
+        }
       }
+
+      // Only process individual light sources if:
+      // 1. Global illumination is not active, OR
+      // 2. We support negative lights (which can reduce light levels), OR
+      // 3. Token is under a light-restricting tile (global illumination was overridden)
       const negativeLights = game.settings.get(CONSTANTS.MODULE_ID, 'negativelights');
-      if (lightLevel < 2 || negativeLights) {
+      if (!globalIlluminationActive || negativeLights) {
         const lightSources = [...canvas.lighting.objects.children, ...canvas.tokens.placeables];
         const sortedLights = lightSources.sort((a, b) => (b.document.light ?? b.document.config).luminosity - (a.document.light ?? a.document.config).luminosity);
         for (let i = 0; i < sortedLights.length; i++) {
@@ -125,7 +143,6 @@ export class LightingManager {
             let lightDimDis = source.data.dim;
             let lightBrtDis = source.data.bright;
             const negativeLight = negativeLights && source.data.luminosity < 0;
-
             console.log(
               'TokenLightCondition | findTokenLighting light analysis - distance:',
               tokenDistance,
@@ -136,7 +153,9 @@ export class LightingManager {
               'negative:',
               negativeLight,
               'luminosity:',
-              source.data.luminosity
+              source.data.luminosity,
+              'globalActive:',
+              globalIlluminationActive
             );
 
             if (tokenDistance <= lightDimDis || tokenDistance <= lightBrtDis) {
@@ -150,17 +169,26 @@ export class LightingManager {
                 if (adjustedAngle > 180) adjustedAngle = 360 - adjustedAngle;
                 if (adjustedAngle > lightAngle / 2) inLight = false;
               }
-
               if (inLight) {
                 let foundWall = CoreUtils.getWallCollision(selectedToken, lightSource);
                 if (!foundWall) {
                   if (tokenDistance <= lightDimDis && lightDimDis > 0) {
-                    if (negativeLight && lightLevel > 1) lightLevel = 1;
-                    else if (lightLevel < 1 && !negativeLight) lightLevel = 1;
+                    if (negativeLight && globalIlluminationActive && lightLevel > 1) {
+                      lightLevel = 1; // Negative light can reduce global illumination to dim
+                    } else if (negativeLight && lightLevel > 1) {
+                      lightLevel = 1; // Negative light reduces light level
+                    } else if (lightLevel < 1 && !negativeLight) {
+                      lightLevel = 1; // Normal light provides dim
+                    }
                   }
                   if (tokenDistance <= lightBrtDis && lightBrtDis > 0) {
-                    if (negativeLight && lightLevel > 0) lightLevel = 0;
-                    else if (lightLevel < 2 && !negativeLight) lightLevel = 2;
+                    if (negativeLight && globalIlluminationActive && lightLevel > 0) {
+                      lightLevel = 0; // Negative light can reduce global illumination to dark
+                    } else if (negativeLight && lightLevel > 0) {
+                      lightLevel = 0; // Negative light reduces to dark
+                    } else if (lightLevel < 2 && !negativeLight && !globalIlluminationActive) {
+                      lightLevel = 2; // Normal light provides bright (but don't override global illumination)
+                    }
                   }
                 }
               }
@@ -168,12 +196,11 @@ export class LightingManager {
           }
         }
       }
-
       let lightLevelText = 'bright';
       if (lightLevel === 0) lightLevelText = 'dark';
       else if (lightLevel === 1) lightLevelText = 'dim';
       else lightLevelText = 'bright';
-      const isPf2e = game.system.id === 'pf2e';
+      console.log('TokenLightCondition | Final light level for token:', lightLevelText, 'lightLevel:', lightLevel, 'globalActive:', globalIlluminationActive);
       const currentLightLevel = selectedToken.actor.getFlag(CONSTANTS.MODULE_ID, 'lightLevel');
       if (currentLightLevel !== lightLevelText) {
         await Effects.clearEffects(selectedToken);
@@ -201,5 +228,30 @@ export class LightingManager {
     if (selectedToken.center == placedLights.center) return 0;
     let angle = Math.atan2(a1 - b1, b2 - a2) * (180 / Math.PI);
     return angle;
+  }
+
+  /**
+   * Check if a token is underneath a tile with light restrictions
+   * @param {Token} selectedToken - The token to check
+   * @returns {boolean} True if token is under a light-restricting tile
+   * @private
+   */
+  static _isTokenUnderLightRestrictingTile(selectedToken) {
+    if (!canvas.tiles?.placeables) return false;
+    const tokenElevation = selectedToken.document.elevation || 0;
+    const lightRestrictingTiles = canvas.tiles.placeables.filter((tile) => tile.document?.restrictions?.light === true);
+    if (lightRestrictingTiles.length === 0) return false;
+    for (const tile of lightRestrictingTiles) {
+      const tokensInTile = canvas.tokens.quadtree.getObjects(tile.bounds);
+      const isTokenInTile = tokensInTile.some((tokenInBounds) => tokenInBounds.id === selectedToken.id);
+      if (isTokenInTile) {
+        const tileElevation = tile.document.elevation || 0;
+        if (tokenElevation < tileElevation) {
+          console.log('TokenLightCondition | Token under light-restricting tile:', 'Token elevation:', tokenElevation, 'Tile elevation:', tileElevation, 'Tile ID:', tile.id);
+          return true;
+        }
+      }
+    }
+    return false;
   }
 }
