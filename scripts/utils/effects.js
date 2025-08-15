@@ -176,33 +176,52 @@ export class Effects {
   }
 
   /**
+   * Find CPR effect by matching our module flags
+   * @param {string} effectType - The effect type to find
+   * @returns {ActiveEffect|null} The matching CPR effect, or null if not found
+   * @private
+   */
+  static _findCPREffect(effectType) {
+    const cprItem = game.items.find((item) => item.flags['chris-premades']?.effectInterface);
+    if (!cprItem) return null;
+    const matchingEffect = cprItem.effects.find((effect) => effect.flags?.[CONSTANTS.MODULE_ID]?.type === effectType);
+    return matchingEffect || null;
+  }
+
+  /**
    * Add core status effect
    * @param {Token} selectedToken - The token
    * @param {string} effectType - The effect type
    * @private
    */
   static async _addCoreEffect(selectedToken, effectType) {
-    console.error('Begin adding effect.');
-    const effectDef = CONSTANTS.EFFECT_DEFINITIONS[effectType];
-    if (!effectDef) {
-      console.warn(`TokenLightCondition | Effect definition for '${effectType}' not found`);
+    console.log(`TokenLightCondition | Adding ${effectType} effect`, { selectedToken });
+
+    if (game.modules.get('chris-premades')?.active && game.settings.get('chris-premades', 'effectInterface') === true) {
+      const cprEffect = this._findCPREffect(effectType);
+      if (cprEffect) {
+        const effectData = cprEffect.toObject();
+        const effect = await ActiveEffect.create(effectData, { keepId: true, parent: selectedToken.actor });
+        console.log(`TokenLightCondition | Created temporary CPR effect "${cprEffect.name}":`, effect);
+        return effect;
+      } else {
+        console.warn(`TokenLightCondition | CPR effect for ${effectType} not found in interface`);
+      }
+    }
+
+    // Create standard ActiveEffect (fallback or non-CPR)
+    const effectData = CONSTANTS.getEffectData(effectType);
+    if (!effectData) {
+      console.warn(`TokenLightCondition | Invalid effect type: ${effectType}`);
       return;
     }
 
-    const effectData = {
-      name: game.i18n.localize(effectDef.name),
-      icon: effectDef.icon,
-      description: game.i18n.localize(effectDef.description),
-      statuses: [effectDef.statuses],
-      changes: [],
-      flags: {
-        [CONSTANTS.MODULE_ID]: {
-          type: effectType,
-          version: '1.0'
-        }
-      }
-    };
-    console.error('Adding Effect:', { effectData });
-    await selectedToken.actor.createEmbeddedDocuments('ActiveEffect', [effectData], { keepId: true });
+    const effect = await ActiveEffect.create(effectData, {
+      keepId: true,
+      parent: selectedToken.actor
+    });
+
+    console.log(`TokenLightCondition | Created ${effectType} effect:`, effect);
+    return effect;
   }
 }

@@ -17,22 +17,9 @@ Hooks.once('ready', () => {
   const module = game.modules.get(CONSTANTS.MODULE_ID);
   console.log(`TokenLightCondition | Ready ${module.version}`);
   moduleState = true;
+  if (game.modules.get('chris-premades')?.active && game.settings.get('chris-premades', 'effectInterface') === true) _integrateCPREffects();
   Effects.initializeEffects();
-});
-
-Hooks.on('i18nInit', () => {
-  // if (game.system.id !== 'dnd5e') return;
-  // for (const [type, def] of Object.entries(CONSTANTS.EFFECT_DEFINITIONS)) {
-  //   const existingStatus = CONFIG.statusEffects.find((s) => s.id === def.statusId);
-  //   if (!existingStatus) {
-  //     CONFIG.statusEffects.push({
-  //       _id: def.id,
-  //       id: def.statusId,
-  //       img: def.icon,
-  //       name: game.i18n.localize(def.name)
-  //     });
-  //   }
-  // }
+  ui.effects?.render(true);
 });
 
 /**
@@ -117,5 +104,30 @@ async function processLightingRefresh() {
     await LightingManager.checkAllTokensLightingRefresh();
   } finally {
     inProgressLight = false;
+  }
+}
+
+/**
+ * Integrate lighting effects with Chris's Premades
+ * @private
+ */
+async function _integrateCPREffects() {
+  try {
+    const cprItem = game.items.find((item) => item.flags['chris-premades']?.effectInterface);
+    if (!cprItem) {
+      console.log('TokenLightCondition | CPR Effect Interface not found');
+      return;
+    }
+
+    for (const effectType of ['dark', 'dim']) {
+      const existingEffect = cprItem.effects.find((effect) => effect.flags?.[CONSTANTS.MODULE_ID]?.type === effectType);
+      if (!existingEffect) {
+        const effectData = CONSTANTS.getEffectData(effectType);
+        await ActiveEffect.create(effectData, { keepId: true, parent: cprItem });
+      }
+    }
+    console.log('TokenLightCondition | CPR integration complete');
+  } catch (error) {
+    console.error('TokenLightCondition | CPR integration failed:', error);
   }
 }

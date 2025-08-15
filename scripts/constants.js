@@ -29,23 +29,46 @@ export const CONSTANTS = {
     DIM_MAX: 0.75
   },
 
-  EFFECT_DEFINITIONS: {
-    dark: {
-      name: 'tokenlightcond-effect-dark',
-      icon: 'icons/skills/melee/weapons-crossed-swords-black.webp',
-      description: 'tokenlightcond-effect-dark-desc',
-      id: 'dnd5etlcdark0000',
-      statusId: 'dark',
-      statuses: 'dark'
-    },
+  /**
+   * Get effect data for creating ActiveEffects
+   * @param {string} effectType - 'dark' or 'dim'
+   * @returns {Object} Effect data ready for ActiveEffect.create()
+   */
+  getEffectData(effectType) {
+    const baseData = {
+      dark: {
+        name: 'Dark Lighting',
+        id: 'tcldarklight0000',
+        img: 'icons/skills/melee/weapons-crossed-swords-black.webp',
+        description: 'Character is in darkness',
+        statuses: ['dark']
+      },
+      dim: {
+        name: 'Dim Lighting',
+        id: 'tcldimlight00000',
+        img: 'icons/skills/melee/weapons-crossed-swords-black-gray.webp',
+        description: 'Character is in dim light',
+        statuses: ['dim']
+      }
+    };
 
-    dim: {
-      name: 'tokenlightcond-effect-dim',
-      icon: 'icons/skills/melee/weapons-crossed-swords-black-gray.webp',
-      description: 'tokenlightcond-effect-dim-desc',
-      id: 'dnd5etlcdim00000',
-      statusId: 'dim',
-      statuses: 'dim'
-    }
+    const effectDef = baseData[effectType];
+    if (!effectDef) return null;
+
+    return {
+      name: effectDef.name,
+      img: effectDef.img,
+      description: effectDef.description,
+      statuses: effectDef.statuses,
+      disabled: false,
+      transfer: false,
+      flags: {
+        [this.MODULE_ID]: {
+          type: effectType,
+          lightLevel: effectType,
+          timestamp: Date.now()
+        }
+      }
+    };
   }
 };
