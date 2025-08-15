@@ -22,11 +22,6 @@ export const CONSTANTS = {
     bright: 'fas fa-sun'
   },
 
-  ICONS: {
-    dim: 'icons/skills/melee/weapons-crossed-swords-black-gray.webp',
-    dark: 'icons/skills/melee/weapons-crossed-swords-black.webp'
-  },
-
   ACTOR_TYPES: ['character', 'npc'],
 
   DARKNESS_THRESHOLDS: {
@@ -40,7 +35,8 @@ export const CONSTANTS = {
       icon: 'icons/skills/melee/weapons-crossed-swords-black.webp',
       description: 'tokenlightcond-effect-dark-desc',
       id: 'dnd5etlcdark0000',
-      statusId: 'dark'
+      statusId: 'dark',
+      statuses: 'dark'
     },
 
     dim: {
@@ -48,7 +44,8 @@ export const CONSTANTS = {
       icon: 'icons/skills/melee/weapons-crossed-swords-black-gray.webp',
       description: 'tokenlightcond-effect-dim-desc',
       id: 'dnd5etlcdim00000',
-      statusId: 'dim'
+      statusId: 'dim',
+      statuses: 'dim'
     }
   }
 };

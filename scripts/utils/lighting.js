@@ -242,8 +242,7 @@ export class LightingManager {
     const lightRestrictingTiles = canvas.tiles.placeables.filter((tile) => tile.document?.restrictions?.light === true);
     if (lightRestrictingTiles.length === 0) return false;
     for (const tile of lightRestrictingTiles) {
-      const tokensInTile = canvas.tokens.quadtree.getObjects(tile.bounds);
-      const isTokenInTile = tokensInTile.some((tokenInBounds) => tokenInBounds.id === selectedToken.id);
+      const isTokenInTile = selectedToken.bounds.intersects(tile.bounds);
       if (isTokenInTile) {
         const tileElevation = tile.document.elevation || 0;
         if (tokenElevation < tileElevation) {

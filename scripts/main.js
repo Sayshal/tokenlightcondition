@@ -21,18 +21,18 @@ Hooks.once('ready', () => {
 });
 
 Hooks.on('i18nInit', () => {
-  if (game.system.id !== 'dnd5e') return;
-  for (const [type, def] of Object.entries(CONSTANTS.EFFECT_DEFINITIONS)) {
-    const existingStatus = CONFIG.statusEffects.find((s) => s.id === def.statusId);
-    if (!existingStatus) {
-      CONFIG.statusEffects.push({
-        _id: def.id,
-        id: def.statusId,
-        img: def.icon,
-        name: game.i18n.localize(def.name)
-      });
-    }
-  }
+  // if (game.system.id !== 'dnd5e') return;
+  // for (const [type, def] of Object.entries(CONSTANTS.EFFECT_DEFINITIONS)) {
+  //   const existingStatus = CONFIG.statusEffects.find((s) => s.id === def.statusId);
+  //   if (!existingStatus) {
+  //     CONFIG.statusEffects.push({
+  //       _id: def.id,
+  //       id: def.statusId,
+  //       img: def.icon,
+  //       name: game.i18n.localize(def.name)
+  //     });
+  //   }
+  // }
 });
 
 /**

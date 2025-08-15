@@ -182,6 +182,7 @@ export class Effects {
    * @private
    */
   static async _addCoreEffect(selectedToken, effectType) {
+    console.error('Begin adding effect.');
     const effectDef = CONSTANTS.EFFECT_DEFINITIONS[effectType];
     if (!effectDef) {
       console.warn(`TokenLightCondition | Effect definition for '${effectType}' not found`);
@@ -192,6 +193,7 @@ export class Effects {
       name: game.i18n.localize(effectDef.name),
       icon: effectDef.icon,
       description: game.i18n.localize(effectDef.description),
+      statuses: [effectDef.statuses],
       changes: [],
       flags: {
         [CONSTANTS.MODULE_ID]: {
@@ -200,7 +202,7 @@ export class Effects {
         }
       }
     };
-
-    await selectedToken.actor.createEmbeddedDocuments('ActiveEffect', [effectData]);
+    console.error('Adding Effect:', { effectData });
+    await selectedToken.actor.createEmbeddedDocuments('ActiveEffect', [effectData], { keepId: true });
   }
 }
