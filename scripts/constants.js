@@ -26,5 +26,10 @@ export const CONSTANTS = {
   DARKNESS_THRESHOLDS: {
     BRIGHT_MAX: 0.5,
     DIM_MAX: 0.75
+  },
+
+  STATUS_EFFECTS: {
+    dark: 'dnd5etlcdark0000',
+    dim: 'dnd5etlcdim00000'
   }
 };

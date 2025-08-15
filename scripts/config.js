@@ -55,18 +55,24 @@ function _registerSettings() {
   });
 
   /**
-   * Effect source setting
+   * Add effects setting
    */
-  game.settings.register(CONSTANTS.MODULE_ID, 'effectSource', {
-    name: game.i18n.localize('tokenlightcond-effectSource-name'),
-    hint: game.i18n.localize('tokenlightcond-effectSource-hint'),
+  game.settings.register(CONSTANTS.MODULE_ID, 'addEffects', {
+    name: game.i18n.localize('tokenlightcond-config-addEffects-name'),
+    hint: game.i18n.localize('tokenlightcond-config-addEffects-hint'),
     scope: 'world',
     config: true,
-    type: String,
-    choices: _getEffectSourceChoices(),
-    default: _getDefaultEffectSource(),
+    type: Boolean,
+    default: true,
     onChange: (value) => {
-      if (canvas.ready && game.user.isGM) Effects.initializeEffects();
+      if (canvas.ready && game.user.isGM) {
+        if (value) {
+          Effects.initializeEffects();
+        } else {
+          // Clear all existing effects when disabled
+          LightingManager.checkAllTokensLightingRefresh();
+        }
+      }
     }
   });
 
@@ -113,37 +119,4 @@ function _registerSettings() {
     default: false,
     type: Boolean
   });
-}
-
-/**
- * Get available effect source choices
- * @returns {Object} The choices object
- * @private
- */
-function _getEffectSourceChoices() {
-  const choices = { none: game.i18n.localize('tokenlightcond-effectSource-none') };
-  const hasATL = game.modules.get('ATL')?.active;
-  const isPf2e = game.system.id === 'pf2e';
-  const hasConvenientEffects = game.dfreds?.effectInterface;
-  const hasCPR = game.modules.get('chris-premades')?.active;
-  if (hasATL || isPf2e) choices.ae = game.i18n.localize('tokenlightcond-effectSource-ae');
-  if (hasConvenientEffects) choices.ce = game.i18n.localize('tokenlightcond-effectSource-ce');
-  if (hasCPR) choices.cpr = game.i18n.localize('tokenlightcond-effectSource-cpr');
-  return choices;
-}
-
-/**
- * Get the default effect source
- * @returns {string} The default source
- * @private
- */
-function _getDefaultEffectSource() {
-  const hasATL = game.modules.get('ATL')?.active;
-  const isPf2e = game.system.id === 'pf2e';
-  const hasConvenientEffects = game.dfreds?.effectInterface;
-  const hasCPR = game.modules.get('chris-premades')?.active;
-  if (hasCPR) return 'cpr';
-  if (hasConvenientEffects) return 'ce';
-  if (hasATL || isPf2e) return 'ae';
-  return 'none';
 }
