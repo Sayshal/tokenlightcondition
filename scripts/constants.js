@@ -16,6 +16,12 @@ export const CONSTANTS = {
     bright: 'BRT'
   },
 
+  LIGHT_ICONS: {
+    dark: 'far fa-moon',
+    dim: 'fas fa-moon',
+    bright: 'fas fa-sun'
+  },
+
   ICONS: {
     dim: 'icons/skills/melee/weapons-crossed-swords-black-gray.webp',
     dark: 'icons/skills/melee/weapons-crossed-swords-black.webp'

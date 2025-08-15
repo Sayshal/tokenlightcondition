@@ -32,16 +32,12 @@
     ]
   },
   "esmodules": ["./scripts/config.js", "./scripts/main.js"],
+  "styles": ["./styles/tokenlightcondition.css"],
   "languages": [
     {
       "lang": "en",
       "name": "English",
       "path": "./lang/en.json"
-    },
-    {
-      "lang": "ru",
-      "name": "Русский",
-      "path": "./lang/ru.json"
     }
   ],
   "url": "https://github.com/Frstrm/TokenLightCondition",
