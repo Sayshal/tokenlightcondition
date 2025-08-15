@@ -19,5 +19,6 @@
   "tokenlightcond-effectSource-hint": "Откуда брать эффект при установке эффектов освещения. После добавления эффекта в CE потребуется перезагрузка",
   "tokenlightcond-effectSource-ce": "Convenient Effects",
   "tokenlightcond-effectSource-none": "Отключить",
-  "tokenlightcond-effectSource-ae": "Настройки модуля"
+  "tokenlightcond-effectSource-ae": "Настройки модуля",
+  "tokenlightcond-effectSource-cpr": "Cauldron of Plentiful Resources (CPR)"
 }

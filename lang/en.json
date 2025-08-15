@@ -19,5 +19,6 @@
   "tokenlightcond-effectSource-hint": "Where to grab the effect from when setting light condition. Will need reload after adding effect to CE",
   "tokenlightcond-effectSource-ce": "Convenient Effects",
   "tokenlightcond-effectSource-none": "Disable token effect",
-  "tokenlightcond-effectSource-ae": "Token Light Condition"
+  "tokenlightcond-effectSource-ae": "Token Light Condition",
+  "tokenlightcond-effectSource-cpr": "Cauldron of Plentiful Resources (CPR)"
 }

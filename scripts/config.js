@@ -125,8 +125,10 @@ function _getEffectSourceChoices() {
   const hasATL = game.modules.get('ATL')?.active;
   const isPf2e = game.system.id === 'pf2e';
   const hasConvenientEffects = game.dfreds?.effectInterface;
+  const hasCPR = game.modules.get('chris-premades')?.active;
   if (hasATL || isPf2e) choices.ae = game.i18n.localize('tokenlightcond-effectSource-ae');
   if (hasConvenientEffects) choices.ce = game.i18n.localize('tokenlightcond-effectSource-ce');
+  if (hasCPR) choices.cpr = game.i18n.localize('tokenlightcond-effectSource-cpr');
   return choices;
 }
 
@@ -139,6 +141,8 @@ function _getDefaultEffectSource() {
   const hasATL = game.modules.get('ATL')?.active;
   const isPf2e = game.system.id === 'pf2e';
   const hasConvenientEffects = game.dfreds?.effectInterface;
+  const hasCPR = game.modules.get('chris-premades')?.active;
+  if (hasCPR) return 'cpr';
   if (hasConvenientEffects) return 'ce';
   if (hasATL || isPf2e) return 'ae';
   return 'none';
