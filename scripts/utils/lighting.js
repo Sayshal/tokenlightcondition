@@ -1,228 +1,290 @@
-import { Core } from './core.js';
+import { CONSTANTS } from '../constants.js';
+import { CoreUtils } from './core.js';
 import { Effects } from './effects.js';
 
-export class Lighting {
-  static lightTable = { dark: 'DRK', dim: 'DIM', bright: 'BRT' };
+/**
+ * Manages lighting calculations and effects for tokens
+ */
+export class LightingManager {
   static processingTokens = new Set();
 
-  static async setDarknessThreshold(darknessLevel) {
-    if (darknessLevel >= 0 && darknessLevel < 0.5) return 'bright';
-    else if (darknessLevel >= 0.5 && darknessLevel < 0.75) return 'dim';
+  /**
+   * Determine darkness threshold based on darkness level
+   * @param {number} darknessLevel - The scene darkness level
+   * @returns {string} The lighting condition ('bright', 'dim', or 'dark')
+   */
+  static setDarknessThreshold(darknessLevel) {
+    if (darknessLevel < CONSTANTS.DARKNESS_THRESHOLDS.BRIGHT_MAX) return 'bright';
+    if (darknessLevel < CONSTANTS.DARKNESS_THRESHOLDS.DIM_MAX) return 'dim';
     return 'dark';
   }
 
+  /**
+   * Convert darkness level to numeric light level
+   * @param {number} darknessLevel - The scene darkness level
+   * @returns {number} The light level (0=dark, 1=dim, 2=bright)
+   */
   static setLightLevel(darknessLevel) {
-    if (darknessLevel >= 0 && darknessLevel < 0.5) return 2;
-    else if (darknessLevel >= 0.5 && darknessLevel < 0.75) return 1;
-    return 0;
+    if (darknessLevel < CONSTANTS.DARKNESS_THRESHOLDS.BRIGHT_MAX) return CONSTANTS.LIGHT_LEVELS.BRIGHT;
+    if (darknessLevel < CONSTANTS.DARKNESS_THRESHOLDS.DIM_MAX) return CONSTANTS.LIGHT_LEVELS.DIM;
+    return CONSTANTS.LIGHT_LEVELS.DARK;
   }
 
-  static async show_lightLevel_box(selected_token, tokenHUD, html) {
-    if (Core.isValidActor(selected_token)) {
-      if (selected_token.actor.system.attributes.hp?.value > 0) {
-        let boxString = this.lightTable[await this.find_token_lighting(selected_token)];
-        const divToAdd = document.createElement('input');
-        divToAdd.disabled = true;
-        divToAdd.id = 'lightL_scr_inp_box';
-        divToAdd.title = 'Light Level';
-        divToAdd.type = 'text';
-        divToAdd.name = 'lightL_score_inp_box';
-        divToAdd.value = boxString;
-        const rightPanel = html.querySelector('.right');
-        if (rightPanel) rightPanel.appendChild(divToAdd);
-        divToAdd.addEventListener('change', async (inputbox) => {});
-      }
-    }
+  /**
+   * Show light level box in token HUD for GM
+   * @param {Token} selectedToken - The selected token
+   * @param {TokenHUD} tokenHUD - The token HUD object
+   * @param {HTMLElement} html - The HUD HTML element
+   */
+  static async showLightLevelBox(selectedToken, tokenHUD, html) {
+    if (!CoreUtils.isValidActor(selectedToken)) return;
+    if (!this._hasValidHp(selectedToken)) return;
+    const lightCondition = await this.findTokenLighting(selectedToken);
+    const boxString = CONSTANTS.LIGHT_LABELS[lightCondition];
+    this._createLightLevelInput(html, boxString);
   }
 
-  static async show_lightLevel_player_box(selected_token, tokenHUD, html) {
-    if (Core.isValidActor(selected_token)) {
-      if (selected_token.actor.system.attributes.hp?.value > 0) {
-        let storedResult = selected_token.actor.getFlag('tokenlightcondition', 'lightLevel');
-        let boxString = this.lightTable[storedResult];
-        const divToAdd = document.createElement('input');
-        divToAdd.disabled = true;
-        divToAdd.id = 'lightL_scr_inp_box';
-        divToAdd.title = 'Light Level';
-        divToAdd.type = 'text';
-        divToAdd.name = 'lightL_score_inp_box';
-        divToAdd.value = boxString;
-        const rightPanel = html.querySelector('.right');
-        if (rightPanel) rightPanel.appendChild(divToAdd);
-        divToAdd.addEventListener('change', async (inputbox) => {});
-      }
-    }
+  /**
+   * Show light level box in token HUD for players
+   * @param {Token} selectedToken - The selected token
+   * @param {TokenHUD} tokenHUD - The token HUD object
+   * @param {HTMLElement} html - The HUD HTML element
+   */
+  static async showLightLevelPlayerBox(selectedToken, tokenHUD, html) {
+    if (!CoreUtils.isValidActor(selectedToken)) return;
+    if (!this._hasValidHp(selectedToken)) return;
+    const storedResult = selectedToken.actor.getFlag(CONSTANTS.MODULE_ID, 'lightLevel');
+    const boxString = CONSTANTS.LIGHT_LABELS[storedResult];
+    this._createLightLevelInput(html, boxString);
   }
 
-  static async check_token_lighting(placed_token) {
-    if (!game.user.isGM || !Core.isValidActor(placed_token)) return;
-    if (placed_token.actor.system.attributes.hp?.value > 0) await this.find_token_lighting(placed_token);
-    else Effects.clearEffects(placed_token);
+  /**
+   * Create light level input element for HUD
+   * @param {HTMLElement} html - The HUD HTML element
+   * @param {string} value - The value to display
+   * @private
+   */
+  static _createLightLevelInput(html, value) {
+    const input = document.createElement('input');
+    Object.assign(input, {
+      disabled: true,
+      id: 'lightL_scr_inp_box',
+      title: 'Light Level',
+      type: 'text',
+      name: 'lightL_score_inp_box',
+      value: value || 'BRT'
+    });
+
+    const rightPanel = html.querySelector('.right');
+    rightPanel?.appendChild(input);
   }
 
-  static async check_all_tokens_lightingRefresh() {
-    let result = [];
-    for (const placed_token of canvas.tokens.placeables) {
-      result.push(await this.check_token_lighting(placed_token));
-    }
-    return result;
+  /**
+   * Check if token has valid HP
+   * @param {Token} token - The token to check
+   * @returns {boolean} True if token has valid HP
+   * @private
+   */
+  static _hasValidHp(token) {
+    return token.actor.system.attributes.hp?.value > 0;
   }
 
-  static async find_token_lighting(selected_token) {
-    if (this.processingTokens.has(selected_token.id)) return selected_token.actor.getFlag('tokenlightcondition', 'lightLevel') || 'bright';
-    this.processingTokens.add(selected_token.id);
+  /**
+   * Check lighting for a single token
+   * @param {Token} placedToken - The token to check
+   */
+  static async checkTokenLighting(placedToken) {
+    if (!game.user.isGM || !CoreUtils.isValidActor(placedToken)) return;
+    if (this._hasValidHp(placedToken)) await this.findTokenLighting(placedToken);
+    else await Effects.clearEffects(placedToken);
+  }
+
+  /**
+   * Check lighting for all tokens on the scene
+   * @returns {Promise<void[]>} Array of promises for all token checks
+   */
+  static async checkAllTokensLightingRefresh() {
+    const promises = canvas.tokens.placeables.map((token) => this.checkTokenLighting(token));
+    return Promise.all(promises);
+  }
+
+  /**
+   * Determine the lighting condition for a token
+   * @param {Token} selectedToken - The token to analyze
+   * @returns {Promise<string>} The lighting condition ('bright', 'dim', or 'dark')
+   */
+  static async findTokenLighting(selectedToken) {
+    // Prevent concurrent processing of the same token
+    if (this.processingTokens.has(selectedToken.id)) return selectedToken.actor.getFlag(CONSTANTS.MODULE_ID, 'lightLevel') || 'bright';
+    this.processingTokens.add(selectedToken.id);
     try {
-      let lightLevel = 0;
-      let globalConfig = game.settings.get('tokenlightcondition', 'globalIllumination');
-      if (globalConfig) {
-        const globalLight = canvas.scene.environment.globalLight.enabled;
-        const darkness = canvas.scene.environment.darknessLevel;
-        const globalLightThreshold = canvas.scene.environment.globalLight.darkness.max ?? 1;
-        if (globalLight && globalLightThreshold && darkness <= globalLightThreshold) lightLevel = 2;
-      }
-      const negativeLights = game.settings.get('tokenlightcondition', 'negativelights');
-      if (lightLevel < 2 || negativeLights) {
-        const lightSources = [...canvas.lighting.objects.children, ...canvas.tokens.placeables];
-        const sortedLights = lightSources.sort((a, b) => (b.document.light ?? b.document.config).luminosity - (a.document.light ?? a.document.config).luminosity);
-        for (const lightSource of sortedLights) {
-          const isToken = Boolean(lightSource.light);
-          let source = isToken ? lightSource.light : lightSource.lightSource;
-          if (source) {
-            if (source.active) {
-              let tokenDistance = Core.get_calculated_distance(selected_token, source);
-              let lightDimDis = source.data.dim;
-              let lightBrtDis = source.data.bright;
-              const negativeLight = negativeLights && source.data.luminosity < 0;
-              if (tokenDistance <= lightDimDis || tokenDistance <= lightBrtDis) {
-                let inLight = true;
-                const lightAngle = source.data.angle;
-                if (lightAngle < 360) {
-                  let lightRotation = source.data.rotation;
-                  let angle = this.get_calculated_light_angle(selected_token, lightSource);
-                  if (angle < 0) angle += 360;
-                  let adjustedAngle = Math.abs(angle - lightRotation);
-                  if (adjustedAngle > 180) adjustedAngle = 360 - adjustedAngle;
-                  if (adjustedAngle > lightAngle / 2) inLight = false;
-                }
-                if (inLight) {
-                  let foundWall = Core.get_wall_collision(selected_token, lightSource);
-                  if (!foundWall) {
-                    if (tokenDistance <= lightDimDis && lightDimDis > 0) {
-                      if (negativeLight && lightLevel > 1) lightLevel = 1;
-                      else if (lightLevel < 1 && !negativeLight) lightLevel = 1;
-                    }
-                    if (tokenDistance <= lightBrtDis && lightBrtDis > 0) {
-                      if (negativeLight && lightLevel > 0) lightLevel = 0;
-                      else if (lightLevel < 2 && !negativeLight) lightLevel = 2;
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-
-      let lightLevelText = 'bright';
-      const system_pf2e = game.system.id == 'pf2e';
-      const currentLightLevel = selected_token.actor.getFlag('tokenlightcondition', 'lightLevel');
-      if (lightLevel === 0) lightLevelText = 'dark';
-      else if (lightLevel === 1) lightLevelText = 'dim';
-      else lightLevelText = 'bright';
-      if (currentLightLevel !== lightLevelText) {
-        if (system_pf2e) {
-          switch (lightLevel) {
-            case 0:
-              console.log('TokenLightCondition | selected_token.actor.items (pf2e dark):', selected_token.actor.items);
-              let dark = selected_token.actor.items.find((e) => e.name === game.i18n.localize('tokenlightcond-effect-dark'));
-              if (!dark) {
-                await Effects.clearEffects(selected_token);
-                await Effects.addDark(selected_token);
-              }
-              break;
-            case 1:
-              console.log('TokenLightCondition | selected_token.actor.items (pf2e dim):', selected_token.actor.items);
-              let dim = selected_token.actor.items.find((e) => e.name === game.i18n.localize('tokenlightcond-effect-dim'));
-              if (!dim) {
-                await Effects.clearEffects(selected_token);
-                await Effects.addDim(selected_token);
-              }
-              break;
-            case 2:
-              await Effects.clearEffects(selected_token);
-          }
-        } else {
-          switch (lightLevel) {
-            case 0:
-              console.log('TokenLightCondition | selected_token.actor.effects (dnd5e dark):', selected_token.actor.effects);
-              let dark = selected_token.actor.effects.find((e) => e.name === game.i18n.localize('tokenlightcond-effect-dark'));
-              if (!dark) {
-                await Effects.clearEffects(selected_token);
-                await Effects.addDark(selected_token);
-              }
-              break;
-            case 1:
-              console.log('TokenLightCondition | selected_token.actor.effects (dnd5e dim):', selected_token.actor.effects);
-              let dim = selected_token.actor.effects.find((e) => e.name === game.i18n.localize('tokenlightcond-effect-dim'));
-              if (!dim) {
-                await Effects.clearEffects(selected_token);
-                await Effects.addDim(selected_token);
-              }
-              break;
-            case 2:
-              await Effects.clearEffects(selected_token);
-          }
-        }
-      }
-      await selected_token.actor.setFlag('tokenlightcondition', 'lightLevel', lightLevelText);
-      let result = selected_token.actor.getFlag('tokenlightcondition', 'lightLevel');
-      return result;
+      let lightLevel = this._getGlobalLightLevel();
+      const negativeLights = game.settings.get(CONSTANTS.MODULE_ID, 'negativelights');
+      if (lightLevel < CONSTANTS.LIGHT_LEVELS.BRIGHT || negativeLights) lightLevel = await this._calculateLightSources(selectedToken, lightLevel, negativeLights);
+      await this._applyLightingEffects(selectedToken, lightLevel);
+      const lightLevelText = this._getLightLevelText(lightLevel);
+      await selectedToken.actor.setFlag(CONSTANTS.MODULE_ID, 'lightLevel', lightLevelText);
+      return lightLevelText;
     } finally {
-      this.processingTokens.delete(selected_token.id);
+      this.processingTokens.delete(selectedToken.id);
     }
   }
 
-  static get_calculated_light_distance(selected_token, placed_lights) {
-    let elevated_distance = 0;
-    let gridSize = canvas.grid.size;
-    let gridDistance = canvas.scene.grid.distance;
-    let z1Actual = 0;
-    let z2Actual = 0;
-    const x1 = selected_token.center.x;
-    const y1 = selected_token.center.y;
-    let z1 = selected_token.document.elevation;
-    const x2 = placed_lights.center.x;
-    const y2 = placed_lights.center.y;
-    let z2 = 0;
-    if (game.modules.get('levels')?.active) {
-      if (placed_lights.document.flags['levels']) {
-        let t = placed_lights.document.flags['levels'].rangeTop;
-        let b = placed_lights.document.flags['levels'].rangeBottom;
-        if (t == null) t = 1000;
-        if (b == null) b = -1000;
-        if (z1 > t) t = z1;
-        if (z1 < b - 5) return 1000;
-        if (z1 > b && z1 < t) z2 = z1;
-      }
-    }
-
-    z1Actual = (z1 / gridDistance) * gridSize;
-    z2Actual = (z2 / gridDistance) * gridSize;
-    let e1 = Math.abs(x1 - x2);
-    let e2 = Math.abs(y1 - y2);
-    let e3 = Math.abs(z1Actual - z2Actual);
-    let distance = Math.sqrt(e1 * e1 + e2 * e2 + e3 * e3);
-    elevated_distance = (distance / gridSize) * gridDistance;
-    return elevated_distance;
+  /**
+   * Get global light level from scene settings
+   * @returns {number} The global light level
+   * @private
+   */
+  static _getGlobalLightLevel() {
+    const globalConfig = game.settings.get(CONSTANTS.MODULE_ID, 'globalIllumination');
+    if (!globalConfig) return 0;
+    const { globalLight, darknessLevel } = canvas.scene.environment;
+    const globalLightThreshold = globalLight.darkness.max ?? 1;
+    return globalLight.enabled && darknessLevel <= globalLightThreshold ? CONSTANTS.LIGHT_LEVELS.BRIGHT : 0;
   }
 
-  static get_calculated_light_angle(selected_token, placed_lights) {
-    const a1 = placed_lights.center.x;
-    const a2 = placed_lights.center.y;
-    const b1 = selected_token.center.x;
-    const b2 = selected_token.center.y;
-    if (selected_token.center == placed_lights.center) return 0;
-    let angle = Math.atan2(a1 - b1, b2 - a2) * (180 / Math.PI);
-    return angle;
+  /**
+   * Calculate lighting from all light sources
+   * @param {Token} selectedToken - The token to check lighting for
+   * @param {number} currentLightLevel - Current light level
+   * @param {boolean} negativeLights - Whether to consider negative lights
+   * @returns {Promise<number>} The calculated light level
+   * @private
+   */
+  static async _calculateLightSources(selectedToken, currentLightLevel, negativeLights) {
+    let lightLevel = currentLightLevel;
+    const lightSources = [...canvas.lighting.objects.children, ...canvas.tokens.placeables];
+    const sortedLights = lightSources.sort((a, b) => (b.document.light ?? b.document.config).luminosity - (a.document.light ?? a.document.config).luminosity);
+    for (const lightSource of sortedLights) {
+      const sourceData = this._getLightSourceData(lightSource);
+      if (!sourceData?.active) continue;
+      const distance = CoreUtils.getCalculatedDistance(selectedToken, sourceData);
+      const { dim: dimDistance, bright: brightDistance } = sourceData.data;
+      if (distance > Math.max(dimDistance, brightDistance)) continue;
+      const isInLightAngle = this._isTokenInLightAngle(selectedToken, lightSource, sourceData);
+      if (!isInLightAngle) continue;
+      const hasWallCollision = CoreUtils.getWallCollision(selectedToken, lightSource);
+      if (hasWallCollision) continue;
+      lightLevel = this._applyLightSourceEffect(lightLevel, distance, dimDistance, brightDistance, negativeLights, sourceData.data.luminosity);
+    }
+    return lightLevel;
+  }
+
+  /**
+   * Get light source data from a light source object
+   * @param {Object} lightSource - The light source object
+   * @returns {Object|null} The light source data
+   * @private
+   */
+  static _getLightSourceData(lightSource) {
+    const isToken = Boolean(lightSource.light);
+    const source = isToken ? lightSource.light : lightSource.lightSource;
+    return source || null;
+  }
+
+  /**
+   * Check if token is within the light source's angle
+   * @param {Token} selectedToken - The token to check
+   * @param {Object} lightSource - The light source object
+   * @param {Object} sourceData - The light source data
+   * @returns {boolean} True if token is within the light angle
+   * @private
+   */
+  static _isTokenInLightAngle(selectedToken, lightSource, sourceData) {
+    const lightAngle = sourceData.data.angle;
+    if (lightAngle >= 360) return true;
+    const lightRotation = sourceData.data.rotation;
+    let angle = this.getCalculatedLightAngle(selectedToken, lightSource);
+    if (angle < 0) angle += 360;
+    let adjustedAngle = Math.abs(angle - lightRotation);
+    if (adjustedAngle > 180) adjustedAngle = 360 - adjustedAngle;
+    return adjustedAngle <= lightAngle / 2;
+  }
+
+  /**
+   * Apply light source effect to current light level
+   * @param {number} currentLevel - Current light level
+   * @param {number} distance - Distance to light source
+   * @param {number} dimDistance - Dim light distance
+   * @param {number} brightDistance - Bright light distance
+   * @param {boolean} negativeLights - Whether to consider negative lights
+   * @param {number} luminosity - Light luminosity
+   * @returns {number} The updated light level
+   * @private
+   */
+  static _applyLightSourceEffect(currentLevel, distance, dimDistance, brightDistance, negativeLights, luminosity) {
+    const isNegativeLight = negativeLights && luminosity < 0;
+    if (distance <= dimDistance && dimDistance > 0) {
+      if (isNegativeLight && currentLevel > CONSTANTS.LIGHT_LEVELS.DIM) return CONSTANTS.LIGHT_LEVELS.DIM;
+      else if (!isNegativeLight && currentLevel < CONSTANTS.LIGHT_LEVELS.DIM) return CONSTANTS.LIGHT_LEVELS.DIM;
+    }
+    if (distance <= brightDistance && brightDistance > 0) {
+      if (isNegativeLight && currentLevel > CONSTANTS.LIGHT_LEVELS.DARK) return CONSTANTS.LIGHT_LEVELS.DARK;
+      else if (!isNegativeLight && currentLevel < CONSTANTS.LIGHT_LEVELS.BRIGHT) return CONSTANTS.LIGHT_LEVELS.BRIGHT;
+    }
+    return currentLevel;
+  }
+
+  /**
+   * Apply lighting effects to token based on light level
+   * @param {Token} selectedToken - The token to apply effects to
+   * @param {number} lightLevel - The calculated light level
+   * @private
+   */
+  static async _applyLightingEffects(selectedToken, lightLevel) {
+    const isPf2e = game.system.id === 'pf2e';
+    const currentLightLevel = selectedToken.actor.getFlag(CONSTANTS.MODULE_ID, 'lightLevel');
+    const newLightLevel = this._getLightLevelText(lightLevel);
+    if (currentLightLevel === newLightLevel) return;
+    const effectCollection = isPf2e ? selectedToken.actor.items : selectedToken.actor.effects;
+    switch (lightLevel) {
+      case CONSTANTS.LIGHT_LEVELS.DARK:
+        const hasCurrentDark = effectCollection.find((e) => e.name === game.i18n.localize('tokenlightcond-effect-dark'));
+        if (!hasCurrentDark) {
+          await Effects.clearEffects(selectedToken);
+          await Effects.addDark(selectedToken);
+        }
+        break;
+      case CONSTANTS.LIGHT_LEVELS.DIM:
+        const hasCurrentDim = effectCollection.find((e) => e.name === game.i18n.localize('tokenlightcond-effect-dim'));
+        if (!hasCurrentDim) {
+          await Effects.clearEffects(selectedToken);
+          await Effects.addDim(selectedToken);
+        }
+        break;
+      case CONSTANTS.LIGHT_LEVELS.BRIGHT:
+        await Effects.clearEffects(selectedToken);
+        break;
+    }
+  }
+
+  /**
+   * Convert numeric light level to text
+   * @param {number} lightLevel - The numeric light level
+   * @returns {string} The text representation
+   * @private
+   */
+  static _getLightLevelText(lightLevel) {
+    switch (lightLevel) {
+      case CONSTANTS.LIGHT_LEVELS.DARK:
+        return 'dark';
+      case CONSTANTS.LIGHT_LEVELS.DIM:
+        return 'dim';
+      default:
+        return 'bright';
+    }
+  }
+
+  /**
+   * Calculate the angle between token and light source
+   * @param {Token} selectedToken - The token
+   * @param {Object} placedLights - The light source
+   * @returns {number} The calculated angle in degrees
+   */
+  static getCalculatedLightAngle(selectedToken, placedLights) {
+    const lightCenter = placedLights.center;
+    const tokenCenter = selectedToken.center;
+    if (lightCenter.x === tokenCenter.x && lightCenter.y === tokenCenter.y) return 0;
+    return Math.atan2(lightCenter.x - tokenCenter.x, tokenCenter.y - lightCenter.y) * (180 / Math.PI);
   }
 }

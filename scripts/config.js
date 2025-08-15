@@ -1,8 +1,15 @@
+import { CONSTANTS } from './constants.js';
 import { Effects } from './utils/effects.js';
-import { Lighting } from './utils/lighting.js';
+import { LightingManager } from './utils/lighting.js';
 
+/**
+ * Handle module setup and configuration
+ */
 Hooks.once('setup', () => {
-  game.settings.register('tokenlightcondition', 'enable', {
+  /**
+   * Register the module enable setting
+   */
+  game.settings.register(CONSTANTS.MODULE_ID, 'enable', {
     name: 'tokenlightcondition.enable',
     scope: 'world',
     config: false,
@@ -10,21 +17,35 @@ Hooks.once('setup', () => {
     default: true,
     onChange: (value) => {
       if (!canvas.ready || !game.user.isGM) return;
-      if (ui.controls.control.name === 'lighting') {
-        console.log('TokenLightCondition | ui.controls.control.tools:', ui.controls.control.tools);
-        if (ui.controls.control.tools['tokenlightcontrol-enable']) ui.controls.control.tools['tokenlightcontrol-enable'].active = value;
-        ui.controls.render();
+      if (ui.controls.control?.name === 'lighting') {
+        const tool = ui.controls.control.tools['tokenlightcontrol-enable'];
+        if (tool) {
+          tool.active = value;
+          ui.controls.render();
+        }
       }
     }
   });
 });
 
+/**
+ * Initialize module settings when ready
+ */
 Hooks.once('ready', () => {
-  const module = game.modules.get('tokenlightcondition');
-  const moduleVersion = module.version;
-  console.log(`tokenlightcondition | Initializing ${moduleVersion}`);
+  const module = game.modules.get(CONSTANTS.MODULE_ID);
+  console.log(`TokenLightCondition | Initializing ${module.version}`);
+  _registerSettings();
+});
 
-  game.settings.register('tokenlightcondition', 'showTokenHud', {
+/**
+ * Register all module settings
+ * @private
+ */
+function _registerSettings() {
+  /**
+   * Show TokenHUD setting
+   */
+  game.settings.register(CONSTANTS.MODULE_ID, 'showTokenHud', {
     name: game.i18n.localize('tokenlightcond-config-showTokenHud-name'),
     hint: game.i18n.localize('tokenlightcond-config-showTokenHud-hint'),
     scope: 'client',
@@ -33,47 +54,26 @@ Hooks.once('ready', () => {
     type: Boolean
   });
 
-  let choices = { none: game.i18n.localize('tokenlightcond-effectSource-none') };
-  let defaultSource = 'none';
-  let findATL = game.modules.get('ATL')?.active;
-  let findCubDark = game.cub?.getCondition(game.i18n.localize('tokenlightcond-effect-dark'));
-  let findCubDim = game.cub?.getCondition(game.i18n.localize('tokenlightcond-effect-dim'));
-  let findCE = game.dfreds?.effectInterface;
-
-  if (findATL) {
-    choices['ae'] = game.i18n.localize('tokenlightcond-effectSource-ae');
-    defaultSource = 'ae';
-  }
-
-  const system_pf2e = game.system.id == 'pf2e';
-  if (system_pf2e) {
-    choices['ae'] = game.i18n.localize('tokenlightcond-effectSource-ae');
-    defaultSource = 'ae';
-  }
-
-  if (findCE) {
-    choices['ce'] = game.i18n.localize('tokenlightcond-effectSource-ce');
-    defaultSource = 'ce';
-  }
-
-  game.settings.register('tokenlightcondition', 'effectSource', {
+  /**
+   * Effect source setting
+   */
+  game.settings.register(CONSTANTS.MODULE_ID, 'effectSource', {
     name: game.i18n.localize('tokenlightcond-effectSource-name'),
     hint: game.i18n.localize('tokenlightcond-effectSource-hint'),
     scope: 'world',
     config: true,
     type: String,
-    choices,
-    default: defaultSource,
+    choices: _getEffectSourceChoices(),
+    default: _getDefaultEffectSource(),
     onChange: (value) => {
-      if (!canvas.ready || !game.user.isGM) {
-        return;
-      }
-
-      Effects.initializeEffects();
+      if (canvas.ready && game.user.isGM) Effects.initializeEffects();
     }
   });
 
-  game.settings.register('tokenlightcondition', 'globalIllumination', {
+  /**
+   * Global illumination setting
+   */
+  game.settings.register(CONSTANTS.MODULE_ID, 'globalIllumination', {
     name: game.i18n.localize('tokenlightcond-config-globalIllumination-name'),
     hint: game.i18n.localize('tokenlightcond-config-globalIllumination-hint'),
     scope: 'world',
@@ -81,12 +81,14 @@ Hooks.once('ready', () => {
     default: false,
     type: Boolean,
     onChange: (value) => {
-      if (!canvas.ready || !game.user.isGM) return;
-      Lighting.check_all_tokens_lightingRefresh();
+      if (canvas.ready && game.user.isGM) LightingManager.checkAllTokensLightingRefresh();
     }
   });
 
-  game.settings.register('tokenlightcondition', 'delaycalculations', {
+  /**
+   * Delay calculations setting
+   */
+  game.settings.register(CONSTANTS.MODULE_ID, 'delaycalculations', {
     name: game.i18n.localize('tokenlightcond-config-delaycalculations-name'),
     hint: game.i18n.localize('tokenlightcond-config-delaycalculations-hint'),
     scope: 'world',
@@ -97,17 +99,47 @@ Hooks.once('ready', () => {
       min: 0,
       max: 3000,
       step: 50
-    },
-    onChange: (value) => {}
+    }
   });
 
-  game.settings.register('tokenlightcondition', 'negativelights', {
+  /**
+   * Negative lights setting
+   */
+  game.settings.register(CONSTANTS.MODULE_ID, 'negativelights', {
     name: game.i18n.localize('tokenlightcond-config-negativelights-name'),
     hint: game.i18n.localize('tokenlightcond-config-negativelights-hint'),
     scope: 'world',
     config: true,
     default: false,
-    type: Boolean,
-    onChange: (value) => {}
+    type: Boolean
   });
-});
+}
+
+/**
+ * Get available effect source choices
+ * @returns {Object} The choices object
+ * @private
+ */
+function _getEffectSourceChoices() {
+  const choices = { none: game.i18n.localize('tokenlightcond-effectSource-none') };
+  const hasATL = game.modules.get('ATL')?.active;
+  const isPf2e = game.system.id === 'pf2e';
+  const hasConvenientEffects = game.dfreds?.effectInterface;
+  if (hasATL || isPf2e) choices.ae = game.i18n.localize('tokenlightcond-effectSource-ae');
+  if (hasConvenientEffects) choices.ce = game.i18n.localize('tokenlightcond-effectSource-ce');
+  return choices;
+}
+
+/**
+ * Get the default effect source
+ * @returns {string} The default source
+ * @private
+ */
+function _getDefaultEffectSource() {
+  const hasATL = game.modules.get('ATL')?.active;
+  const isPf2e = game.system.id === 'pf2e';
+  const hasConvenientEffects = game.dfreds?.effectInterface;
+  if (hasConvenientEffects) return 'ce';
+  if (hasATL || isPf2e) return 'ae';
+  return 'none';
+}

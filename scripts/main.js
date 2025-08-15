@@ -1,76 +1,89 @@
-import { Core } from './utils/core.js';
+import { CONSTANTS } from './constants.js';
+import { CoreUtils } from './utils/core.js';
 import { Effects } from './utils/effects.js';
-import { Lighting } from './utils/lighting.js';
+import { LightingManager } from './utils/lighting.js';
 
+/**
+ * Module state tracking
+ */
 let inProgressLight = false;
 let moduleState = false;
-let refreshId = 0;
+let refreshTimeoutId = 0;
 
-Hooks.once('init', () => {
-  game.socket.on(`module.tokenlightcondition`, (data) => {});
-});
-
+/**
+ * Module ready hook
+ */
 Hooks.once('ready', () => {
-  const module = game.modules.get('tokenlightcondition');
-  const moduleVersion = module.version;
-  console.log(`tokenlightcondition | Ready ${moduleVersion}`);
+  const module = game.modules.get(CONSTANTS.MODULE_ID);
+  console.log(`TokenLightCondition | Ready ${module.version}`);
   moduleState = true;
   Effects.initializeEffects();
 });
 
-Hooks.on('getSceneControlButtons', (controls) => TokenLightCondition.getSceneControlButtons(controls));
+/**
+ * Add scene control buttons
+ */
+Hooks.on('getSceneControlButtons', (controls) => {
+  TokenLightCondition.getSceneControlButtons(controls);
+});
 
+/**
+ * Handle lighting refresh events
+ */
 Hooks.on('lightingRefresh', (data) => {
-  if (game.user.isGM) {
-    if (Core.checkModuleState()) {
-      const delay = game.settings.get('tokenlightcondition', 'delaycalculations');
-      if (delay !== 0) {
-        clearTimeout(refreshId);
-        refreshId = setTimeout(processLightingRefresh, delay);
-      } else processLightingRefresh();
-    }
+  if (!game.user.isGM || !CoreUtils.checkModuleState()) return;
+  const delay = game.settings.get(CONSTANTS.MODULE_ID, 'delaycalculations');
+  if (delay !== 0) {
+    clearTimeout(refreshTimeoutId);
+    refreshTimeoutId = setTimeout(processLightingRefresh, delay);
+  } else {
+    processLightingRefresh();
   }
 });
 
+/**
+ * Handle token refresh events
+ */
 Hooks.on('refreshToken', (token) => {
-  if (moduleState && game.user.isGM && Core.checkModuleState()) Core.isValidActor(token);
-});
-
-Hooks.on('renderTokenHUD', (tokenHUD, html, app) => {
-  const showHud = game.settings.get('tokenlightcondition', 'showTokenHud');
-  if (showHud) {
-    if (Core.checkModuleState()) {
-      let selected_token = Core.find_selected_token(tokenHUD);
-      if (Core.isValidActor(selected_token)) {
-        if (game.user.isGM) Lighting.show_lightLevel_box(selected_token, tokenHUD, html);
-        else Lighting.show_lightLevel_player_box(selected_token, tokenHUD, html);
-      }
-    }
+  if (moduleState && game.user.isGM && CoreUtils.checkModuleState()) {
+    CoreUtils.isValidActor(token);
   }
 });
 
+/**
+ * Handle token HUD rendering
+ */
+Hooks.on('renderTokenHUD', (tokenHUD, html, app) => {
+  const showHud = game.settings.get(CONSTANTS.MODULE_ID, 'showTokenHud');
+  if (!showHud || !CoreUtils.checkModuleState()) return;
+  const selectedToken = CoreUtils.findSelectedToken(tokenHUD);
+  if (!CoreUtils.isValidActor(selectedToken)) return;
+  if (game.user.isGM) LightingManager.showLightLevelBox(selectedToken, tokenHUD, html);
+  else LightingManager.showLightLevelPlayerBox(selectedToken, tokenHUD, html);
+});
+
+/**
+ * Main module class
+ */
 export class TokenLightCondition {
   /**
    * Add the token light condition toggle to the lighting controls
    * @param {Object} controls - The scene controls object
-   * @static
    */
   static getSceneControlButtons(controls) {
+    if (!game.user.isGM) return;
     try {
-      if (!game.user.isGM) return;
       const lightingControl = controls.lighting;
-      if (!lightingControl || !lightingControl.tools) return;
-
-      // Add our toggle tool to the lighting controls
+      if (!lightingControl?.tools) return;
       lightingControl.tools['tokenlightcontrol-enable'] = {
         name: 'tokenlightcontrol-enable',
         order: 999,
         title: 'Toggle Token Light Condition',
         icon: 'fa-solid fa-eye-low-vision',
         toggle: true,
-        active: !!game.settings.get('tokenlightcondition', 'enable'),
+        active: game.settings.get(CONSTANTS.MODULE_ID, 'enable'),
         onChange: (event, active) => {
-          Core.toggleTokenLightCond(active);
+          CoreUtils.toggleTokenLightCondition(active);
         }
       };
     } catch (error) {
@@ -79,10 +92,15 @@ export class TokenLightCondition {
   }
 }
 
+/**
+ * Process lighting refresh with concurrency protection
+ */
 async function processLightingRefresh() {
-  if (!inProgressLight) {
-    inProgressLight = true;
-    await Lighting.check_all_tokens_lightingRefresh();
+  if (inProgressLight) return;
+  inProgressLight = true;
+  try {
+    await LightingManager.checkAllTokensLightingRefresh();
+  } finally {
     inProgressLight = false;
   }
 }

@@ -31,7 +31,6 @@
       }
     ]
   },
-  "socket": true,
   "esmodules": ["./scripts/config.js", "./scripts/main.js"],
   "languages": [
     {

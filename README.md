@@ -1,3 +1,5 @@
+Original module by <a href="https://github.com/Frstrm/TokenLightCondition">Frstrm</a>, taken over with permission.
+
 [![License](https://img.shields.io/github/license/Frstrm/TokenLightCondition?label=License)](LICENSE)
 [![Latest Version](https://img.shields.io/github/v/release/frstrm/tokenlightcondition?display_name=tag&sort=semver&label=Latest%20Version)](https://github.com/frstrm/tokenlightcondition/releases/latest)
 ![Foundry Version](https://img.shields.io/endpoint?url=https://foundryshields.com/version?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffrstrm%2Ftokenlightcondition%2Fmain%2Fmodule.json)
@@ -23,12 +25,14 @@ Determine the light condition of a token, and generate effects on the token to i
 This is to allow players, or modules to use these effects to help rules determination around those conditions.
 
 # Systems Suported
+
 - dnd5e
 - pf2e
 
 # Features
+
 - Adds a token Hud element to selected token (right-click the token):
--   Hud indicator - ( DRK, DIM, BRT )
+- Hud indicator - ( DRK, DIM, BRT )
 - Adds an Effect when token is in Dim or Dark conditions.
 - Removes Dim/Dark effects while in Bright conditions.
 - Updates tokens on scene Darkness Level changes.
@@ -63,13 +67,15 @@ Tokens must be type Characters/NPC, and have an HP > 0 in order to be processed.
 
 Efforts are being made for tokens to respect tile overrides, and other methods.
 These may work with some degree of success/failure.
-* lights with elevations (Levels)
-* * lights are treated as cyclinders, with a top and bottom, that act as ceiling and floors.
-* * Testing results around this have been varied based on other mods in use.
+
+- lights with elevations (Levels)
+- - lights are treated as cyclinders, with a top and bottom, that act as ceiling and floors.
+- - Testing results around this have been varied based on other mods in use.
 
 ## Options
 
 ### **Console logging level**
+
 Sets the level of console used for logging:
 <ul>
   <li>No Logging - Use this for no output</li>
@@ -78,11 +84,14 @@ Sets the level of console used for logging:
 </ul>
 
 ### **Show TokenHud**
+
 Enables or Disables the display of the light condition on the TokenHud.
+
 - Adds a token Hud element to selected token (right-click the token):
--   Hud indicator - ( DRK, DIM, BRT )
+- Hud indicator - ( DRK, DIM, BRT )
 
 ### **Source for lighting effect**
+
 Choose which source or application the effects are generated from.
 <ul>
   <li>Disable token effect (None)</li>
@@ -95,14 +104,14 @@ None means there no effects placed on tokens, but the token Hud will still work.
 Convienent Effects entries are added on module load if they don't exist.
 
 ### **Global Illumination**
+
 Use Scene Global Illumination settings in determination of token light conditions.
 
 ### **Delay Calculations**
+
 Delays the light condition calculation by the configured miliseconds.
 Value of 0, disables the delay feature.
 
 ### **Negative Lights Support**
-Negative luminance will provide dim or dark conditions instead of removing them.
 
-## Suggested Modules
-* [Stealthy](https://foundryvtt.com/packages/stealthy)
+Negative luminance will provide dim or dark conditions instead of removing them.

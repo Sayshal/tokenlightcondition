@@ -1,142 +1,201 @@
+import { CONSTANTS } from '../constants.js';
 import { Effects } from './effects.js';
-import { Lighting } from './lighting.js';
+import { LightingManager } from './lighting.js';
 
-export class Core {
-  static CONSOLE_COLORS = ['background: #222; color: #ff80ff', 'color: #fff'];
-  static HEADER = `<b>Token Light Condition:</b> `;
-
+/**
+ * Core utility functions for Token Light Condition module
+ */
+export class CoreUtils {
+  /**
+   * Check if the module is currently enabled
+   * @returns {boolean} True if module is enabled
+   */
   static checkModuleState() {
-    let enableSetting = game.settings.get('tokenlightcondition', 'enable');
-    if (enableSetting) return true;
-    else return false;
+    return game.settings.get(CONSTANTS.MODULE_ID, 'enable');
   }
 
-  static async toggleTokenLightCond(toggled) {
-    await game.settings.set('tokenlightcondition', 'enable', toggled);
-    if (game.user.isGM) {
-      let enableSetting = game.settings.get('tokenlightcondition', 'enable');
-      if (enableSetting) await Lighting.check_all_tokens_lightingRefresh();
-      else for (const placed_token of canvas.tokens.placeables) if (this.isValidActor(placed_token)) await Effects.clearEffects(placed_token);
+  /**
+   * Toggle the Token Light Condition functionality
+   * @param {boolean} toggled - Whether to enable or disable the module
+   */
+  static async toggleTokenLightCondition(toggled) {
+    await game.settings.set(CONSTANTS.MODULE_ID, 'enable', toggled);
+    if (!game.user.isGM) return;
+    const enableSetting = game.settings.get(CONSTANTS.MODULE_ID, 'enable');
+    if (enableSetting) {
+      await LightingManager.checkAllTokensLightingRefresh();
+    } else {
+      const promises = canvas.tokens.placeables.filter((token) => this.isValidActor(token)).map((token) => Effects.clearEffects(token));
+      await Promise.all(promises);
     }
   }
 
-  static async initialize_token(token) {
-    if (game.user.isGM) {
-      await token.actor.setFlag('tokenlightcondition');
-      Lighting.check_token_lighting(token);
-    }
+  /**
+   * Initialize a token with the module flag
+   * @param {Token} token - The token to initialize
+   */
+  static async initializeToken(token) {
+    if (!game.user.isGM) return;
+    await token.actor.setFlag(CONSTANTS.MODULE_ID);
+    LightingManager.checkTokenLighting(token);
   }
 
-  static isValidActor(selected_token) {
-    if (selected_token.actor) {
-      if (selected_token.actor.type == 'character' || selected_token.actor.type == 'npc') {
-        if (!selected_token.actor.flags['tokenlightcondition']) this.initialize_token(selected_token);
-        return true;
-      }
-    }
-    return false;
+  /**
+   * Check if an actor/token is valid for lighting effects
+   * @param {Token} selectedToken - The token to validate
+   * @returns {boolean} True if the token is valid
+   */
+  static isValidActor(selectedToken) {
+    if (!selectedToken?.actor) return false;
+    const isValidType = CONSTANTS.ACTOR_TYPES.includes(selectedToken.actor.type);
+    if (!isValidType) return false;
+    const hasFlag = selectedToken.actor.flags[CONSTANTS.MODULE_ID];
+    if (!hasFlag) this.initializeToken(selectedToken);
+    return true;
   }
 
-  static find_token_by_token_id(token_id) {
-    for (const placed_token of canvas.tokens.placeables) {
-      if (placed_token.id == token_id) return placed_token;
-    }
-    return;
+  /**
+   * Find a token by its token ID
+   * @param {string} tokenId - The token ID to search for
+   * @returns {Token|undefined} The found token or undefined
+   */
+  static findTokenByTokenId(tokenId) {
+    return canvas.tokens.placeables.find((token) => token.id === tokenId);
   }
 
-  static find_token_by_actor_id(token_id) {
-    for (const placed_token of canvas.tokens.placeables) {
-      if (placed_token.actor.id == token_id) return placed_token;
-    }
-    return;
+  /**
+   * Find a token by its actor ID
+   * @param {string} actorId - The actor ID to search for
+   * @returns {Token|undefined} The found token or undefined
+   */
+  static findTokenByActorId(actorId) {
+    return canvas.tokens.placeables.find((token) => token.actor?.id === actorId);
   }
 
-  static find_token_by_user_char_id(actor_id) {
-    for (const placed_token of canvas.tokens.placeables) {
-      if (placed_token.actor.id == game.user.character.id) return placed_token;
-    }
-    return;
+  /**
+   * Find the current user's character token
+   * @returns {Token|undefined} The user's character token or undefined
+   */
+  static findTokenByUserCharId() {
+    if (!game.user.character) return undefined;
+    return canvas.tokens.placeables.find((token) => token.actor?.id === game.user.character.id);
   }
 
-  static find_selected_token(tokenHUD) {
-    let index_of_token = 0;
-    if (canvas.tokens.controlled.length > 1) {
-      let token_with_hud_open = canvas.tokens.controlled.find((token) => token.id == tokenHUD.object.actor.token.id);
-      index_of_token = canvas.tokens.controlled.indexOf(token_with_hud_open);
-    }
-    return canvas.tokens.controlled[index_of_token];
+  /**
+   * Find the selected token from TokenHUD
+   * @param {TokenHUD} tokenHUD - The token HUD object
+   * @returns {Token} The selected token
+   */
+  static findSelectedToken(tokenHUD) {
+    if (canvas.tokens.controlled.length <= 1) return canvas.tokens.controlled[0];
+    const tokenWithHudOpen = canvas.tokens.controlled.find((token) => token.id === tokenHUD.object.actor.token.id);
+    const index = canvas.tokens.controlled.indexOf(tokenWithHudOpen);
+    return canvas.tokens.controlled[index];
   }
 
-  static get_calculated_distance(selected_token, light_source) {
-    let gridSize = canvas.grid.size;
-    let gridDistance = canvas.scene.grid.distance;
-    const x1 = selected_token.center.x;
-    const y1 = selected_token.center.y;
-    const z1 = (selected_token.document.elevation / gridDistance) * gridSize;
-    const x2 = light_source.x;
-    const y2 = light_source.y;
-    const z2 = (light_source.elevation / gridDistance) * gridSize;
-    let e1 = Math.abs(x1 - x2);
-    let e2 = Math.abs(y1 - y2);
-    let e3 = Math.abs(z1 - z2);
-    const distance = Math.sqrt(e1 * e1 + e2 * e2 + e3 * e3);
-    return distance;
+  /**
+   * Calculate 3D distance between token and light source accounting for elevation
+   * @param {Token} selectedToken - The token
+   * @param {LightSource|Token} lightSource - The light source
+   * @returns {number} The calculated distance
+   */
+  static getCalculatedDistance(selectedToken, lightSource) {
+    const gridSize = canvas.grid.size;
+    const gridDistance = canvas.scene.grid.distance;
+    const token = {
+      x: selectedToken.center.x,
+      y: selectedToken.center.y,
+      z: (selectedToken.document.elevation / gridDistance) * gridSize
+    };
+    const light = {
+      x: lightSource.x,
+      y: lightSource.y,
+      z: (lightSource.elevation / gridDistance) * gridSize
+    };
+    const deltaX = Math.abs(token.x - light.x);
+    const deltaY = Math.abs(token.y - light.y);
+    const deltaZ = Math.abs(token.z - light.z);
+    return Math.sqrt(deltaX ** 2 + deltaY ** 2 + deltaZ ** 2);
   }
 
-  static get_wall_collision(selected_token, targetObject) {
-    let testResult = CONFIG.Canvas.polygonBackends['sight'].testCollision(selected_token.center, targetObject.center, { type: 'sight', mode: 'all' });
-    if (testResult.length == 0) return false;
-    else return true;
+  /**
+   * Test for wall collision between token and target
+   * @param {Token} selectedToken - The source token
+   * @param {Object} targetObject - The target object
+   * @returns {boolean} True if there's a wall collision
+   */
+  static getWallCollision(selectedToken, targetObject) {
+    const testResult = CONFIG.Canvas.polygonBackends.sight.testCollision(selectedToken.center, targetObject.center, { type: 'sight', mode: 'all' });
+    return testResult.length > 0;
   }
 
+  /**
+   * Check if a token is within a drawing shape
+   * @param {Drawing} drawingShape - The drawing shape
+   * @param {Token} token - The token to check
+   * @returns {boolean} True if token is within the drawing
+   */
   static isWithinDrawing(drawingShape, token) {
-    let tokenPosition = token.center;
-    let x = drawingShape.x;
-    let y = drawingShape.y;
-    let width = drawingShape.shape.width;
-    let height = drawingShape.shape.height;
-    let type = drawingShape.shape.type;
-    if (drawingShape.rotation != 0) {
-      let drawing_center = [x + 0.5 * width, y + 0.5 * height];
+    let tokenPosition = { ...token.center };
+    const {
+      x,
+      y,
+      shape: { width, height, type, points },
+      rotation
+    } = drawingShape;
+
+    // Handle rotation
+    if (rotation !== 0) {
+      const drawingCenter = [x + 0.5 * width, y + 0.5 * height];
+      const cos = Math.cos((-rotation * Math.PI) / 180);
+      const sin = Math.sin((-rotation * Math.PI) / 180);
       tokenPosition = {
-        x:
-          Math.cos((-drawingShape.rotation * Math.PI) / 180) * (tokenPosition.x - drawing_center[0]) -
-          Math.sin((-drawingShape.rotation * Math.PI) / 180) * (tokenPosition.y - drawing_center[1]) +
-          drawing_center[0],
-        y:
-          Math.sin((-drawingShape.rotation * Math.PI) / 180) * (tokenPosition.x - drawing_center[0]) +
-          Math.cos((-drawingShape.rotation * Math.PI) / 180) * (tokenPosition.y - drawing_center[1]) +
-          drawing_center[1]
+        x: cos * (tokenPosition.x - drawingCenter[0]) - sin * (tokenPosition.y - drawingCenter[1]) + drawingCenter[0],
+        y: sin * (tokenPosition.x - drawingCenter[0]) + cos * (tokenPosition.y - drawingCenter[1]) + drawingCenter[1]
       };
     }
-
-    if (Number.between(tokenPosition.x, x, x + width) && Number.between(tokenPosition.y, y, y + height)) {
-      if (type == 'r') {
+    const isInBounds = Number.between(tokenPosition.x, x, x + width) && Number.between(tokenPosition.y, y, y + height);
+    if (!isInBounds) return false;
+    switch (type) {
+      case 'r': // Rectangle
         return true;
-      } else if (type == 'e') {
-        return (tokenPosition.x - x - 0.5 * width) ** 2 * (0.5 * height) ** 2 + (tokenPosition.y - y - 0.5 * height) ** 2 * (0.5 * width) ** 2 <= (0.5 * width) ** 2 * (0.5 * height) ** 2;
-      } else if (type == 'p' || type == 'f') {
-        let vertices = [];
-        for (let i = 0; i < drawingShape.shape.points.length; i++) {
-          if (i % 2) vertices.push([drawingShape.shape.points[i - 1] + x, drawingShape.shape.points[i] + y]);
-        }
-        let isInside = false;
-        let i = 0,
-          j = vertices.length - 1;
-        for (i, j; i < vertices.length; j = i++) {
-          if (
-            vertices[i][1] > tokenPosition.y != vertices[j][1] > tokenPosition.y &&
-            tokenPosition.x((vertices[j][0] - vertices[i][0]) * (tokenPosition.y - vertices[i][1])) / (vertices[j][1] - vertices[i][1]) + vertices[i][0]
-          ) {
-            isInside = !isInside;
-          }
-        }
-        return isInside;
-      } else {
+      case 'e': // Ellipse
+        const centerX = x + 0.5 * width;
+        const centerY = y + 0.5 * height;
+        const radiusX = 0.5 * width;
+        const radiusY = 0.5 * height;
+        return (tokenPosition.x - centerX) ** 2 / radiusX ** 2 + (tokenPosition.y - centerY) ** 2 / radiusY ** 2 <= 1;
+      case 'p':
+      case 'f': // Polygon/Freehand
+        return this._isPointInPolygon(tokenPosition, points, x, y);
+      default:
         return true;
-      }
-    } else {
-      return false;
     }
+  }
+
+  /**
+   * Check if a point is inside a polygon using ray casting algorithm
+   * @param {Object} point - The point to check
+   * @param {number[]} points - The polygon points
+   * @param {number} offsetX - X offset
+   * @param {number} offsetY - Y offset
+   * @returns {boolean} True if point is inside polygon
+   * @private
+   */
+  static _isPointInPolygon(point, points, offsetX, offsetY) {
+    const vertices = [];
+    for (let i = 0; i < points.length; i += 2) {
+      vertices.push([points[i] + offsetX, points[i + 1] + offsetY]);
+    }
+    let isInside = false;
+    for (let i = 0, j = vertices.length - 1; i < vertices.length; j = i++) {
+      const xi = vertices[i][0],
+        yi = vertices[i][1];
+      const xj = vertices[j][0],
+        yj = vertices[j][1];
+
+      if (yi > point.y !== yj > point.y && point.x < ((xj - xi) * (point.y - yi)) / (yj - yi) + xi) isInside = !isInside;
+    }
+    return isInside;
   }
 }
