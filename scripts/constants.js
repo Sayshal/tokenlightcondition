@@ -34,8 +34,21 @@ export const CONSTANTS = {
     DIM_MAX: 0.75
   },
 
-  STATUS_EFFECTS: {
-    dark: 'dnd5etlcdark0000',
-    dim: 'dnd5etlcdim00000'
+  EFFECT_DEFINITIONS: {
+    dark: {
+      name: 'tokenlightcond-effect-dark',
+      icon: 'icons/skills/melee/weapons-crossed-swords-black.webp',
+      description: 'tokenlightcond-effect-dark-desc',
+      id: 'dnd5etlcdark0000',
+      statusId: 'dark'
+    },
+
+    dim: {
+      name: 'tokenlightcond-effect-dim',
+      icon: 'icons/skills/melee/weapons-crossed-swords-black-gray.webp',
+      description: 'tokenlightcond-effect-dim-desc',
+      id: 'dnd5etlcdim00000',
+      statusId: 'dim'
+    }
   }
 };

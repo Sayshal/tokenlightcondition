@@ -108,19 +108,14 @@ export class Effects {
    * @private
    */
   static async _clearEffectsDnd5e(selectedToken) {
-    const effectNames = ['dim', 'dark'].map((type) => game.i18n.localize(`tokenlightcond-effect-${type}`));
     const effectsToRemove = selectedToken.actor.effects.filter((effect) => {
       const isOurEffect = effect.flags?.[CONSTANTS.MODULE_ID]?.type;
       return isOurEffect;
     });
 
     if (effectsToRemove.length > 0) {
-      const validEffectIds = [];
-      for (const effect of effectsToRemove) {
-        const stillExists = selectedToken.actor.effects.get(effect.id);
-        if (stillExists) validEffectIds.push(effect.id);
-      }
-      if (validEffectIds.length > 0) await selectedToken.actor.deleteEmbeddedDocuments('ActiveEffect', validEffectIds);
+      const validEffectIds = effectsToRemove.map((effect) => effect.id);
+      await selectedToken.actor.deleteEmbeddedDocuments('ActiveEffect', validEffectIds);
     }
   }
 
@@ -187,15 +182,25 @@ export class Effects {
    * @private
    */
   static async _addCoreEffect(selectedToken, effectType) {
-    const effectName = game.i18n.localize(`tokenlightcond-effect-${effectType}`);
+    const effectDef = CONSTANTS.EFFECT_DEFINITIONS[effectType];
+    if (!effectDef) {
+      console.warn(`TokenLightCondition | Effect definition for '${effectType}' not found`);
+      return;
+    }
+
     const effectData = {
-      name: effectName,
-      icon: CONSTANTS.ICONS[effectType],
-      description: game.i18n.localize(`tokenlightcond-effect-${effectType}-desc`),
+      name: game.i18n.localize(effectDef.name),
+      icon: effectDef.icon,
+      description: game.i18n.localize(effectDef.description),
       changes: [],
-      flags: { [CONSTANTS.MODULE_ID]: { type: effectType, version: '1.0' } }
+      flags: {
+        [CONSTANTS.MODULE_ID]: {
+          type: effectType,
+          version: '1.0'
+        }
+      }
     };
-    const result = await selectedToken.actor.createEmbeddedDocuments('ActiveEffect', [effectData]);
-    const ourEffects = selectedToken.actor.effects.filter((e) => e.flags?.[CONSTANTS.MODULE_ID]?.type === effectType);
+
+    await selectedToken.actor.createEmbeddedDocuments('ActiveEffect', [effectData]);
   }
 }

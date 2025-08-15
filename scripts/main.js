@@ -17,38 +17,19 @@ Hooks.once('ready', () => {
   const module = game.modules.get(CONSTANTS.MODULE_ID);
   console.log(`TokenLightCondition | Ready ${module.version}`);
   moduleState = true;
-  // Check for CPR compatibility
-  const cpr = game.modules.get('chris-premades');
-  if (cpr?.active) {
-    console.log('TokenLightCondition | CPR (Cauldron of Plentiful Resources) detected and supported');
-
-    // Ensure CPR is fully loaded before initializing effects
-    if (window.chrisPremades?.utils?.effectUtils) {
-      console.log('TokenLightCondition | CPR Effect Interface available');
-    }
-  }
   Effects.initializeEffects();
 });
 
 Hooks.on('i18nInit', () => {
-  if (!game.system.id === 'dnd5e') return;
-  const effects = [
-    { type: 'dark', name: 'Dark', id: 'dnd5etlcdark0000' },
-    { type: 'dim', name: 'Dim', id: 'dnd5etlcdim00000' }
-  ];
-
-  for (const effect of effects) {
-    const statusId = effect.name.toLowerCase();
-
-    // Check if status effect already exists
-    const existingStatus = CONFIG.statusEffects.find((s) => s.id === statusId);
+  if (game.system.id !== 'dnd5e') return;
+  for (const [type, def] of Object.entries(CONSTANTS.EFFECT_DEFINITIONS)) {
+    const existingStatus = CONFIG.statusEffects.find((s) => s.id === def.statusId);
     if (!existingStatus) {
       CONFIG.statusEffects.push({
-        _id: effect.id,
-        id: effect.type,
-        img: CONSTANTS.ICONS[effect.type],
-        name: effect.name,
-        customStatus: true
+        _id: def.id,
+        id: def.statusId,
+        img: def.icon,
+        name: game.i18n.localize(def.name)
       });
     }
   }
