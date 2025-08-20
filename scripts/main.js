@@ -6,9 +6,9 @@ import { LightingManager } from './utils/lighting.js';
 /**
  * Module state tracking
  */
-let inProgressLight = false;
 let moduleState = false;
 let refreshTimeoutId = 0;
+let processingUpdate = false;
 
 /**
  * Module ready hook
@@ -30,30 +30,85 @@ Hooks.on('getSceneControlButtons', (controls) => {
 });
 
 /**
- * Handle lighting refresh events
+ * Handle token creation - check lighting for new token
  */
-Hooks.on('lightingRefresh', (data) => {
+Hooks.on('createToken', (tokenDocument, options, userId) => {
   if (!game.user.isGM || !CoreUtils.checkModuleState()) return;
-  const delay = game.settings.get(CONSTANTS.MODULE_ID, 'delaycalculations');
-  if (delay !== 0) {
-    clearTimeout(refreshTimeoutId);
-    refreshTimeoutId = setTimeout(processLightingRefresh, delay);
-  } else {
-    processLightingRefresh();
+  const token = tokenDocument.object;
+  if (token) {
+    LightingManager.checkTokenLighting(token);
   }
 });
 
 /**
- * Handle token refresh events
+ * Handle token updates - only check lighting when position actually changes
  */
-Hooks.on('refreshToken', (token) => {
-  if (moduleState && game.user.isGM && CoreUtils.checkModuleState()) {
-    CoreUtils.isValidActor(token);
+Hooks.on('updateToken', (tokenDocument, changes, options, userId) => {
+  if (!game.user.isGM || !CoreUtils.checkModuleState()) return;
+
+  // Only recalculate if position, elevation, or other movement-related properties changed
+  const movementKeys = ['x', 'y', 'elevation', 'hidden'];
+  const hasMovementChange = movementKeys.some((key) => key in changes);
+
+  if (hasMovementChange) {
+    const token = tokenDocument.object;
+    if (token) {
+      debounceTokenLightingCheck(token);
+    }
   }
 });
 
 /**
- * Handle token HUD rendering
+ * Handle ambient light changes - recalculate all tokens when lighting sources change
+ */
+Hooks.on('updateAmbientLight', (lightDocument, changes, options, userId) => {
+  if (!game.user.isGM || !CoreUtils.checkModuleState()) return;
+  debounceAllTokensLightingCheck();
+});
+
+Hooks.on('createAmbientLight', (lightDocument, options, userId) => {
+  if (!game.user.isGM || !CoreUtils.checkModuleState()) return;
+  debounceAllTokensLightingCheck();
+});
+
+Hooks.on('deleteAmbientLight', (lightDocument, options, userId) => {
+  if (!game.user.isGM || !CoreUtils.checkModuleState()) return;
+  debounceAllTokensLightingCheck();
+});
+
+/**
+ * Handle scene updates that affect lighting
+ */
+Hooks.on('updateScene', (sceneDocument, changes, options, userId) => {
+  if (!game.user.isGM || !CoreUtils.checkModuleState()) return;
+  if (sceneDocument.id !== canvas.scene?.id) return;
+
+  // Only recalculate if lighting-related properties changed
+  const lightingKeys = ['environment.darknessLevel', 'environment.globalLight'];
+  const hasLightingChange = lightingKeys.some((key) => foundry.utils.hasProperty(changes, key));
+
+  if (hasLightingChange) {
+    debounceAllTokensLightingCheck();
+  }
+});
+
+/**
+ * Handle token light updates (when tokens themselves emit light)
+ */
+Hooks.on('updateToken', (tokenDocument, changes, options, userId) => {
+  if (!game.user.isGM || !CoreUtils.checkModuleState()) return;
+
+  // Check if light-related properties changed
+  const lightKeys = ['light.bright', 'light.dim', 'light.luminosity', 'light.angle', 'light.rotation'];
+  const hasLightChange = lightKeys.some((key) => foundry.utils.hasProperty(changes, key));
+
+  if (hasLightChange) {
+    debounceAllTokensLightingCheck();
+  }
+});
+
+/**
+ * Handle token HUD rendering - only show HUD, don't recalculate lighting
  */
 Hooks.on('renderTokenHUD', (tokenHUD, html, app) => {
   const showHud = game.settings.get(CONSTANTS.MODULE_ID, 'showTokenHud');
@@ -63,6 +118,49 @@ Hooks.on('renderTokenHUD', (tokenHUD, html, app) => {
   if (game.user.isGM) LightingManager.showLightLevelBox(selectedToken, tokenHUD, html);
   else LightingManager.showLightLevelPlayerBox(selectedToken, tokenHUD, html);
 });
+
+/**
+ * Debounced function to check lighting for a single token
+ */
+function debounceTokenLightingCheck(token) {
+  const delay = game.settings.get(CONSTANTS.MODULE_ID, 'delaycalculations');
+  if (delay !== 0) {
+    clearTimeout(token._lightingTimeout);
+    token._lightingTimeout = setTimeout(() => {
+      LightingManager.checkTokenLighting(token);
+    }, delay);
+  } else {
+    LightingManager.checkTokenLighting(token);
+  }
+}
+
+/**
+ * Debounced function to check lighting for all tokens
+ */
+function debounceAllTokensLightingCheck() {
+  if (processingUpdate) return;
+
+  const delay = game.settings.get(CONSTANTS.MODULE_ID, 'delaycalculations');
+  if (delay !== 0) {
+    clearTimeout(refreshTimeoutId);
+    refreshTimeoutId = setTimeout(processAllTokensLighting, delay);
+  } else {
+    processAllTokensLighting();
+  }
+}
+
+/**
+ * Process lighting for all tokens with concurrency protection
+ */
+async function processAllTokensLighting() {
+  if (processingUpdate) return;
+  processingUpdate = true;
+  try {
+    await LightingManager.checkAllTokensLightingRefresh();
+  } finally {
+    processingUpdate = false;
+  }
+}
 
 /**
  * Main module class
@@ -91,19 +189,6 @@ export class TokenLightCondition {
     } catch (error) {
       console.error('TokenLightCondition | Error adding scene control button:', error);
     }
-  }
-}
-
-/**
- * Process lighting refresh with concurrency protection
- */
-async function processLightingRefresh() {
-  if (inProgressLight) return;
-  inProgressLight = true;
-  try {
-    await LightingManager.checkAllTokensLightingRefresh();
-  } finally {
-    inProgressLight = false;
   }
 }
 
