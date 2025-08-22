@@ -60,10 +60,7 @@ Get Token Light Condition through Foundry's **Module Manager** for instant setup
 
 1. Open **Foundry's Configuration and Setup** screen
 2. Click **Install Module** in the Add-on Modules section
-3. Paste this URL in the **Manifest URL** field:
-
-[https://github.com/Sayshal/tokenlightcondition/releases/latest/download/module.json](https://github.com/Sayshal/tokenlightcondition/releases/latest/download/module.json)
-
+3. Paste this URL in the **Manifest URL** field: [https://github.com/Sayshal/tokenlightcondition/releases/latest/download/module.json](https://github.com/Sayshal/tokenlightcondition/releases/latest/download/module.json)
 4. Click **Install**
 5. Enable Token Light Condition in the **Manage Modules** section
 
