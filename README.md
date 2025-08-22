@@ -21,21 +21,21 @@ Say goodbye to manual lighting calculations and forgotten visibility rules. **To
 
 ## Key Features
 
-### 🌟 **Intelligent Lighting Detection**
+### **Intelligent Lighting Detection**
 
 - **Automatic Calculations**: Real-time detection of bright, dim, and dark lighting conditions
 - **Visual Effects**: Clear status effects applied to tokens in dim or dark conditions
 - **Smart Wall Detection**: Properly handles light blocked by walls and obstacles
 - **Complex Light Sources**: Support for angled lights, elevation differences, and rotating light sources
 
-### 🎭 **Enhanced Token Management**
+### **Enhanced Token Management**
 
 - **HUD Indicators**: Quick visual reference showing DRK, DIM, or BRT status on token selection
 - **Living Tokens Only**: Automatically filters to characters and NPCs with HP > 0
 - **Multi-Token Updates**: Efficiently processes lighting changes across entire scenes
 - **Effect Integration**: Seamlessly works with ActiveEffects and status condition systems
 
-### 🎯 **Advanced Lighting Features**
+### **Advanced Lighting Features**
 
 - **Global Illumination Support**: Respects scene-wide lighting settings with intelligent overrides
 - **Negative Light Sources**: Experimental support for darkness-creating light sources
@@ -43,7 +43,7 @@ Say goodbye to manual lighting calculations and forgotten visibility rules. **To
 - **Magical Darkness Areas**: Integration with drawing tools to create light-blocking regions
 - **Angled Light Precision**: Accurate calculations for directional and cone lighting
 
-### 🛠️ **Powerful GM Controls**
+### **Powerful GM Controls**
 
 - **One-Click Toggle**: Easy enable/disable control directly in the lighting toolbar
 - **Flexible Enforcement**: Choose between automatic effects or tracking-only modes
