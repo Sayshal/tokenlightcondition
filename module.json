@@ -22,7 +22,7 @@
         "id": "dnd5e",
         "type": "system",
         "compatibility": {
-          "verified": "5.1.0"
+          "verified": "5.1.2"
         }
       },
       {
@@ -40,11 +40,11 @@
       "path": "./lang/en.json"
     }
   ],
-  "url": "https://github.com/Frstrm/TokenLightCondition",
-  "manifest": "https://github.com/Frstrm/TokenLightCondition/releases/latest/download/module.json",
+  "url": "https://github.com/Sayshal/tokenlightcondition",
+  "manifest": "https://github.com/Sayshal/tokenlightcondition/releases/latest/download/module.json",
   "download": "",
-  "changelog": "https://github.com/Frstrm/TokenLightCondition/releases",
-  "bugs": "https://github.com/Frstrm/TokenLightCondition/issues",
-  "readme": "https://github.com/Frstrm/TokenLightCondition/tree/dev?tab=readme-ov-file",
-  "license": "https://github.com/Frstrm/TokenLightCondition/tree/dev?tab=MIT-1-ov-file"
+  "changelog": "https://github.com/Sayshal/tokenlightcondition/releases",
+  "bugs": "https://github.com/Sayshal/tokenlightcondition/issues",
+  "readme": "https://github.com/Sayshal/tokenlightcondition/tree/dev?tab=readme-ov-file",
+  "license": "https://github.com/Sayshal/tokenlightcondition/tree/dev?tab=MIT-1-ov-file"
 }

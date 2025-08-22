@@ -46,8 +46,8 @@ function _registerSettings() {
    * Show TokenHUD setting
    */
   game.settings.register(CONSTANTS.MODULE_ID, 'showTokenHud', {
-    name: game.i18n.localize('tokenlightcond-config-showTokenHud-name'),
-    hint: game.i18n.localize('tokenlightcond-config-showTokenHud-hint'),
+    name: game.i18n.localize('TOKENLIGHTCONDITION.Settings.ShowTokenHud.Name'),
+    hint: game.i18n.localize('TOKENLIGHTCONDITION.Settings.ShowTokenHud.Hint'),
     scope: 'client',
     config: true,
     default: true,
@@ -58,8 +58,8 @@ function _registerSettings() {
    * Add effects setting
    */
   game.settings.register(CONSTANTS.MODULE_ID, 'addEffects', {
-    name: game.i18n.localize('tokenlightcond-config-addEffects-name'),
-    hint: game.i18n.localize('tokenlightcond-config-addEffects-hint'),
+    name: game.i18n.localize('TOKENLIGHTCONDITION.Settings.AddEffects.Name'),
+    hint: game.i18n.localize('TOKENLIGHTCONDITION.Settings.AddEffects.Hint'),
     scope: 'world',
     config: true,
     type: Boolean,
@@ -80,8 +80,8 @@ function _registerSettings() {
    * Global illumination setting
    */
   game.settings.register(CONSTANTS.MODULE_ID, 'globalIllumination', {
-    name: game.i18n.localize('tokenlightcond-config-globalIllumination-name'),
-    hint: game.i18n.localize('tokenlightcond-config-globalIllumination-hint'),
+    name: game.i18n.localize('TOKENLIGHTCONDITION.Settings.GlobalIllumination.Name'),
+    hint: game.i18n.localize('TOKENLIGHTCONDITION.Settings.GlobalIllumination.Hint'),
     scope: 'world',
     config: true,
     default: false,
@@ -95,8 +95,8 @@ function _registerSettings() {
    * Delay calculations setting
    */
   game.settings.register(CONSTANTS.MODULE_ID, 'delaycalculations', {
-    name: game.i18n.localize('tokenlightcond-config-delaycalculations-name'),
-    hint: game.i18n.localize('tokenlightcond-config-delaycalculations-hint'),
+    name: game.i18n.localize('TOKENLIGHTCONDITION.Settings.DelayCalculations.Name'),
+    hint: game.i18n.localize('TOKENLIGHTCONDITION.Settings.DelayCalculations.Hint'),
     scope: 'world',
     config: true,
     default: 0,
@@ -112,8 +112,8 @@ function _registerSettings() {
    * Negative lights setting
    */
   game.settings.register(CONSTANTS.MODULE_ID, 'negativelights', {
-    name: game.i18n.localize('tokenlightcond-config-negativelights-name'),
-    hint: game.i18n.localize('tokenlightcond-config-negativelights-hint'),
+    name: game.i18n.localize('TOKENLIGHTCONDITION.Settings.NegativeLights.Name'),
+    hint: game.i18n.localize('TOKENLIGHTCONDITION.Settings.NegativeLights.Hint'),
     scope: 'world',
     config: true,
     default: false,

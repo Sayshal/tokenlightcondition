@@ -24,7 +24,7 @@ export class Effects {
     const effects = ['dim', 'dark'];
     const itemsToCreate = [];
     for (const effectType of effects) {
-      const localizedName = game.i18n.localize(`tokenlightcond-effect-${effectType}`);
+      const localizedName = game.i18n.localize(`TOKENLIGHTCONDITION.Effects.${effectType.charAt(0).toUpperCase() + effectType.slice(1)}.Name`);
       const existingItem = game.items.find((item) => item.name === localizedName);
       if (!existingItem) {
         const itemData = this._createPf2eEffectData(effectType);
@@ -44,14 +44,15 @@ export class Effects {
     const isDark = effectType === 'dark';
     const ruleOption = isDark ? 'lighting:darkness' : 'lighting:dim-light';
     const icon = isDark ? 'systems/pf2e/icons/default-icons/ancestry.svg' : 'systems/pf2e/icons/default-icons/character.svg';
+    const effectName = effectType.charAt(0).toUpperCase() + effectType.slice(1);
     const data = {
-      name: game.i18n.localize(`tokenlightcond-effect-${effectType}`),
+      name: game.i18n.localize(`TOKENLIGHTCONDITION.Effects.${effectName}.Name`),
       type: 'effect',
       effects: [],
       system: {
         description: {
           gm: '',
-          value: game.i18n.localize(`tokenlightcond-effect-${effectType}-desc`)
+          value: game.i18n.localize(`TOKENLIGHTCONDITION.Effects.${effectName}.Description`)
         },
         rules: [{ key: 'RollOption', option: ruleOption }],
         slug: `tokenlightcondition-${effectType}`,
@@ -94,7 +95,7 @@ export class Effects {
    * @private
    */
   static async _clearEffectsPf2e(selectedToken) {
-    const effectNames = ['dim', 'dark'].map((type) => game.i18n.localize(`tokenlightcond-effect-${type}`));
+    const effectNames = ['Dim', 'Dark'].map((type) => game.i18n.localize(`TOKENLIGHTCONDITION.Effects.${type}.Name`));
     const itemsToRemove = selectedToken.actor.items.filter((item) => effectNames.includes(item.name));
     if (itemsToRemove.length > 0) {
       const itemIds = itemsToRemove.map((item) => item.id);
@@ -152,7 +153,7 @@ export class Effects {
       const isPf2e = game.system.id === 'pf2e';
       let existingEffect;
       if (isPf2e) {
-        const effectName = game.i18n.localize(`tokenlightcond-effect-${effectType}`);
+        const effectName = game.i18n.localize(`TOKENLIGHTCONDITION.Effects.${effectType.charAt(0).toUpperCase() + effectType.slice(1)}.Name`);
         existingEffect = selectedToken.actor.items.find((item) => item.name === effectName);
       } else existingEffect = selectedToken.actor.effects.find((effect) => effect.flags?.[CONSTANTS.MODULE_ID]?.type === effectType);
       if (existingEffect) return;
@@ -170,7 +171,7 @@ export class Effects {
    * @private
    */
   static async _addPf2eEffect(selectedToken, effectType) {
-    const effectName = game.i18n.localize(`tokenlightcond-effect-${effectType}`);
+    const effectName = game.i18n.localize(`TOKENLIGHTCONDITION.Effects.${effectType.charAt(0).toUpperCase() + effectType.slice(1)}.Name`);
     const effectItem = game.items.find((item) => item.name === effectName);
     if (effectItem) await selectedToken.actor.createEmbeddedDocuments('Item', [effectItem]);
   }
