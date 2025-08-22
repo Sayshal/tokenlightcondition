@@ -1,512 +1,229 @@
-import { Core } from './core.js';
+import { CONSTANTS } from '../constants.js';
 
+/**
+ * Manages lighting effects for tokens
+ */
 export class Effects {
+  static creatingEffects = new Set();
 
-  static dimIcon = 'icons/skills/melee/weapons-crossed-swords-black-gray.webp';
-  static darkIcon = 'icons/skills/melee/weapons-crossed-swords-black.webp';
-
+  /**
+   * Initialize effects based on the current game system
+   */
   static async initializeEffects() {
-    const system_pf2e = (game.system.id == 'pf2e');
-
-    if (system_pf2e) {
-      await this.initializeEffects_pf2e();
-    } else {
-      await this.initializeEffects_dnd5e();
-    }
+    const addEffects = game.settings.get(CONSTANTS.MODULE_ID, 'addEffects');
+    if (!addEffects) return;
+    const isPf2e = game.system.id === 'pf2e';
+    if (isPf2e) await this._initializeEffectsPf2e();
   }
 
-  static async initializeEffects_dnd5e() {
-    const source = game.settings.get('tokenlightcondition', 'effectSource');
-
-    if (source === 'ce') {
-      const ce = game.dfreds?.effectInterface;
-      // create CE effects
-
-      if (ce) {
-        let ceDark = ce.findCustomEffectByName(game.i18n.localize('tokenlightcond-effect-dark'));
-
-        if (!ceDark) {
-          const dark = this.makeDarkEffectCE();
-          ce.createNewCustomEffectsWith({ activeEffects: [dark] });
-        }
-
-        let ceDim = ce.findCustomEffectByName(game.i18n.localize('tokenlightcond-effect-dim'));
-
-        if (!ceDim) {
-          const dim = this.makeDimEffectCE();
-          ce.createNewCustomEffectsWith({ activeEffects: [dim] });
-        }
+  /**
+   * Initialize effects for PF2e system
+   * @private
+   */
+  static async _initializeEffectsPf2e() {
+    const effects = ['dim', 'dark'];
+    const itemsToCreate = [];
+    for (const effectType of effects) {
+      const localizedName = game.i18n.localize(`TOKENLIGHTCONDITION.Effects.${effectType.charAt(0).toUpperCase() + effectType.slice(1)}.Name`);
+      const existingItem = game.items.find((item) => item.name === localizedName);
+      if (!existingItem) {
+        const itemData = this._createPf2eEffectData(effectType);
+        itemsToCreate.push(itemData);
       }
     }
+    if (itemsToCreate.length > 0) await Item.createDocuments(itemsToCreate);
   }
 
-  static async initializeEffects_pf2e() {
-    const source = game.settings.get('tokenlightcondition', 'effectSource');
-
-    const dim = game.items.find(e => e.name === game.i18n.localize('tokenlightcond-effect-dim'));
-    const dark = game.items.find(e => e.name === game.i18n.localize('tokenlightcond-effect-dark'));
-
-    if (!dim) {
-      Core.log("Create pf2e Dim Effect Item");
-      let dimData = '';
-      if (game.version < 12) {
-        dimData = this.pf2eCreateDimData();
-      } else {
-        dimData = this.pf2eCreateDimData_v12();
-      }
-      let dimItem = await Item.create(dimData);
-    }
-
-    if (!dark) {
-      Core.log("Create pf2e Dark Effect Item");
-      let darkData = '';
-      if (game.version < 12) {
-        darkData = this.pf2eCreateDarkData();
-      } else {
-        darkData = this.pf2eCreateDarkData_v12();
-      }
-      let darkItem = await Item.create(darkData);
-    }
-  }
-
-  static makeDarkEffectCE() {
-    const dark = {
-      label: game.i18n.localize('tokenlightcond-effect-dark'),
-      icon: this.darkIcon,
-      changes: [],
-      flags: { convenientDescription: game.i18n.localize('tokenlightcond-effect-dark-desc') },
-    };
-
-    return dark;
-  }
-
-  static makeDimEffectCE() {
-    const dim = {
-      label: game.i18n.localize('tokenlightcond-effect-dim'),
-      icon: this.dimIcon,
-      changes: [],
-      flags: { convenientDescription: game.i18n.localize('tokenlightcond-effect-dim-desc') },
-    };
-
-    return dim;
-  }
-
-  static pf2eCreateDimData() {
-    const dim = {
+  /**
+   * Create PF2e effect data
+   * @param {string} effectType - The type of effect ('dark' or 'dim')
+   * @returns {Object} The PF2e effect data
+   * @private
+   */
+  static _createPf2eEffectData(effectType) {
+    const isDark = effectType === 'dark';
+    const ruleOption = isDark ? 'lighting:darkness' : 'lighting:dim-light';
+    const icon = isDark ? 'systems/pf2e/icons/default-icons/ancestry.svg' : 'systems/pf2e/icons/default-icons/character.svg';
+    const effectName = effectType.charAt(0).toUpperCase() + effectType.slice(1);
+    const data = {
+      name: game.i18n.localize(`TOKENLIGHTCONDITION.Effects.${effectName}.Name`),
       type: 'effect',
-      name: game.i18n.localize('tokenlightcond-effect-dim'),
-      img: 'systems/pf2e/icons/default-icons/character.svg',
-      data: {
-        tokenIcon: { show: true },
+      effects: [],
+      system: {
+        description: {
+          gm: '',
+          value: game.i18n.localize(`TOKENLIGHTCONDITION.Effects.${effectName}.Description`)
+        },
+        rules: [{ key: 'RollOption', option: ruleOption }],
+        slug: `tokenlightcondition-${effectType}`,
+        traits: {
+          otherTags: [],
+          value: []
+        },
+        level: { value: 0 },
         duration: {
           value: 1,
           unit: 'unlimited',
-          sustained: false,
           expiry: 'turn-start',
+          sustained: false
         },
-        description: {
-          value: game.i18n.localize('tokenlightcond-effect-dim-desc'),
-        },
-        "rules": [
-          {
-            "key": "RollOption",
-            "option": "lighting:dim-light"
-          }
-        ],
-        unidentified: true,
-        traits: {
-          custom: '',
-          rarity: 'common',
-          value: [],
-        },
-        level: {
-          value: 0,
-        },
-        source: {
-          value: '',
-        },
-        slug: `tokenlightcondition-dim`,
-      },
-      flags: {}
-    }
-
-    return dim
-  }
-
-  static pf2eCreateDarkData() {
-    const dark = {
-      type: 'effect',
-      name: game.i18n.localize('tokenlightcond-effect-dark'),
-      img: 'systems/pf2e/icons/default-icons/ancestry.svg',
-      data: {
         tokenIcon: { show: true },
-        duration: {
-          value: 1,
-          unit: 'unlimited',
-          sustained: false,
-          expiry: 'turn-start',
-        },
-        description: {
-          value: game.i18n.localize('tokenlightcond-effect-dark-desc'),
-        },
-        "rules": [
-          {
-            "key": "RollOption",
-            "option": "lighting:darkness"
-          }
-        ],
-        unidentified: true,
-        traits: {
-          custom: '',
-          rarity: 'common',
-          value: [],
-        },
-        level: {
-          value: 0,
-        },
-        source: {
-          value: '',
-        },
-        slug: `tokenlightcondition-dark`,
+        badge: null,
+        context: null,
+        unidentified: true
       },
+      img: icon,
       flags: {}
-    }
-
-    return dark;
+    };
+    return data;
   }
 
-  static pf2eCreateDimData_v12() {
-    const dim = {
-      "name": game.i18n.localize('tokenlightcond-effect-dim'),
-      "type": 'effect',
-      "effects": [],
-      "system": {
-        "description": {
-          "gm": "",
-          "value": game.i18n.localize('tokenlightcond-effect-dim-desc')
-        },
-        "rules": [
-          {
-            "key": "RollOption",
-            "option": "lighting:dim-light"
-          }
-        ],
-        "slug": `tokenlightcondition-dim`,
-        "traits": {
-          "otherTags": [],
-          "value": []
-        },
-        "level": {
-          "value": 0
-        },
-        "duration": {
-          "value": 1,
-          "unit": 'unlimited',
-          "expiry": 'turn-start',
-          "sustained": false
-        },
-        "tokenIcon": { "show": true },
-        "badge": null,
-        "context": null,
-        "unidentified": true,
-      },
-      "img": 'systems/pf2e/icons/default-icons/character.svg',
-      "flags": {}
-    }
-
-    return dim
+  /**
+   * Clear all lighting effects from a token
+   * @param {Token} selectedToken - The token to clear effects from
+   */
+  static async clearEffects(selectedToken) {
+    if (!selectedToken?.actor) return;
+    const isPf2e = game.system.id === 'pf2e';
+    if (isPf2e) await this._clearEffectsPf2e(selectedToken);
+    else await this._clearEffectsDnd5e(selectedToken);
   }
 
-  static pf2eCreateDarkData_v12() {
-    const dark = {
-      "name": game.i18n.localize('tokenlightcond-effect-dark'),
-      "type": 'effect',
-      "effects": [],
-      "system": {
-        "description": {
-          "gm": "",
-          "value": game.i18n.localize('tokenlightcond-effect-dark-desc')
-        },
-        "rules": [
-          {
-            "key": "RollOption",
-            "option": "lighting:darkness"
-          }
-        ],
-        "slug": `tokenlightcondition-dark`,
-        "traits": {
-          "otherTags": [],
-          "value": []
-        },
-        "level": {
-          "value": 0
-        },
-        "duration": {
-          "value": 1,
-          "unit": 'unlimited',
-          "expiry": 'turn-start',
-          "sustained": false
-        },
-        "tokenIcon": { "show": true },
-        "badge": null,
-        "context": null,
-        "unidentified": true,
-      },
-      "img": 'systems/pf2e/icons/default-icons/ancestry.svg',
-      "flags": {}
-    }
-
-    return dark;
-  }
-
-  static async clearEffects(selected_token) {
-    const system_pf2e = (game.system.id == 'pf2e');
-
-    if (system_pf2e) {
-      await this.clearEffects_pf2e(selected_token);
-    } else {
-      await this.clearEffects_dnd5e(selected_token);
+  /**
+   * Clear effects for PF2e
+   * @param {Token} selectedToken - The token to clear effects from
+   * @private
+   */
+  static async _clearEffectsPf2e(selectedToken) {
+    const effectNames = ['Dim', 'Dark'].map((type) => game.i18n.localize(`TOKENLIGHTCONDITION.Effects.${type}.Name`));
+    const itemsToRemove = selectedToken.actor.items.filter((item) => effectNames.includes(item.name));
+    if (itemsToRemove.length > 0) {
+      const itemIds = itemsToRemove.map((item) => item.id);
+      await selectedToken.actor.deleteEmbeddedDocuments('Item', itemIds);
     }
   }
 
-  static async clearEffects_dnd5e(selected_token){
-    let foundEffects = true;
+  /**
+   * Clear effects for D&D 5e
+   * @param {Token} selectedToken - The token to clear effects from
+   * @private
+   */
+  static async _clearEffectsDnd5e(selectedToken) {
+    const effectsToRemove = selectedToken.actor.effects.filter((effect) => {
+      const isOurEffect = effect.flags?.[CONSTANTS.MODULE_ID]?.type;
+      return isOurEffect;
+    });
 
-    // edge case, if there are multiple effects on the token
-    while (foundEffects) {
-      let dim = "";
-      let dark = "";
-      if (game.version < 12) {
-        dim = selected_token.actor.effects.find(e => e.label === game.i18n.localize('tokenlightcond-effect-dim'));
-        dark = selected_token.actor.effects.find(e => e.label === game.i18n.localize('tokenlightcond-effect-dark'));
+    if (effectsToRemove.length > 0) {
+      const validEffectIds = effectsToRemove.map((effect) => effect.id);
+      await selectedToken.actor.deleteEmbeddedDocuments('ActiveEffect', validEffectIds);
+    }
+  }
+
+  /**
+   * Add dark effect to a token
+   * @param {Token} selectedToken - The token to add the effect to
+   */
+  static async addDark(selectedToken) {
+    await this._addEffect(selectedToken, 'dark');
+  }
+
+  /**
+   * Add dim effect to a token
+   * @param {Token} selectedToken - The token to add the effect to
+   */
+  static async addDim(selectedToken) {
+    await this._addEffect(selectedToken, 'dim');
+  }
+
+  /**
+   * Add a lighting effect to a token
+   * @param {Token} selectedToken - The token to add the effect to
+   * @param {string} effectType - The type of effect ('dark' or 'dim')
+   * @private
+   */
+  static async _addEffect(selectedToken, effectType) {
+    if (!selectedToken?.actor) return;
+    const addEffects = game.settings.get(CONSTANTS.MODULE_ID, 'addEffects');
+    if (!addEffects) return;
+    const lockKey = `${selectedToken.actor.id}-${effectType}`;
+    if (this.creatingEffects.has(lockKey)) return;
+    this.creatingEffects.add(lockKey);
+    try {
+      const isPf2e = game.system.id === 'pf2e';
+      let existingEffect;
+      if (isPf2e) {
+        const effectName = game.i18n.localize(`TOKENLIGHTCONDITION.Effects.${effectType.charAt(0).toUpperCase() + effectType.slice(1)}.Name`);
+        existingEffect = selectedToken.actor.items.find((item) => item.name === effectName);
+      } else existingEffect = selectedToken.actor.effects.find((effect) => effect.flags?.[CONSTANTS.MODULE_ID]?.type === effectType);
+      if (existingEffect) return;
+      if (isPf2e) await this._addPf2eEffect(selectedToken, effectType);
+      else await this._addCoreEffect(selectedToken, effectType);
+    } finally {
+      this.creatingEffects.delete(lockKey);
+    }
+  }
+
+  /**
+   * Add effect for PF2e system
+   * @param {Token} selectedToken - The token
+   * @param {string} effectType - The effect type
+   * @private
+   */
+  static async _addPf2eEffect(selectedToken, effectType) {
+    const effectName = game.i18n.localize(`TOKENLIGHTCONDITION.Effects.${effectType.charAt(0).toUpperCase() + effectType.slice(1)}.Name`);
+    const effectItem = game.items.find((item) => item.name === effectName);
+    if (effectItem) await selectedToken.actor.createEmbeddedDocuments('Item', [effectItem]);
+  }
+
+  /**
+   * Find CPR effect by matching our module flags
+   * @param {string} effectType - The effect type to find
+   * @returns {ActiveEffect|null} The matching CPR effect, or null if not found
+   * @private
+   */
+  static _findCPREffect(effectType) {
+    const cprItem = game.items.find((item) => item.flags['chris-premades']?.effectInterface);
+    if (!cprItem) return null;
+    const matchingEffect = cprItem.effects.find((effect) => effect.flags?.[CONSTANTS.MODULE_ID]?.type === effectType);
+    return matchingEffect || null;
+  }
+
+  /**
+   * Add core status effect
+   * @param {Token} selectedToken - The token
+   * @param {string} effectType - The effect type
+   * @private
+   */
+  static async _addCoreEffect(selectedToken, effectType) {
+    console.log(`TokenLightCondition | Adding ${effectType} effect`, { selectedToken });
+
+    if (game.modules.get('chris-premades')?.active && game.settings.get('chris-premades', 'effectInterface') === true) {
+      const cprEffect = this._findCPREffect(effectType);
+      if (cprEffect) {
+        const effectData = cprEffect.toObject();
+        effectData.statuses = [effectType];
+        const effect = await ActiveEffect.create(effectData, { keepId: true, parent: selectedToken.actor });
+        console.log(`TokenLightCondition | Created temporary CPR effect "${cprEffect.name}":`, effect);
+        return effect;
       } else {
-        dim = selected_token.actor.effects.find(e => e.name === game.i18n.localize('tokenlightcond-effect-dim'));
-        dark = selected_token.actor.effects.find(e => e.name === game.i18n.localize('tokenlightcond-effect-dark'));
-      }
-
-      if (!dim && !dark) {
-        foundEffects = false;
-      }
-
-      if (dim) {
-        await selected_token.actor.deleteEmbeddedDocuments('ActiveEffect', [dim.id])
-      }
-
-      if (dark) {
-        await selected_token.actor.deleteEmbeddedDocuments('ActiveEffect', [dark.id])
-      }
-    }
-  }
-
-  static async clearEffects_pf2e(selected_token) {
-    let foundEffects = true;
-
-    // edge case, if there are multiple effects on the token
-    while (foundEffects) {
-      const dim = selected_token.actor.items.find(e => e.name === game.i18n.localize('tokenlightcond-effect-dim'));
-      const dark = selected_token.actor.items.find(e => e.name === game.i18n.localize('tokenlightcond-effect-dark'));
-
-      if (!dim && !dark) {
-        foundEffects = false;
-      }
-
-      if (dim) {
-        await selected_token.actor.deleteEmbeddedDocuments('Item', [dim.id]);
-      }
-
-      if (dark) {
-        await selected_token.actor.deleteEmbeddedDocuments('Item', [dark.id])
-      }
-    }
-  }
-
-  static async addDark(selected_token) {
-    const system_pf2e = (game.system.id == 'pf2e');
-    let dark = '';
-    if (system_pf2e) {
-      dark = await selected_token.actor.items.find(e => e.name === game.i18n.localize('tokenlightcond-effect-dark'));
-    } else {
-      if (game.version < 12) {
-        dark = await selected_token.actor.effects.find(e => e.label === game.i18n.localize('tokenlightcond-effect-dark'));
-      } else {
-        dark = await selected_token.actor.effects.find(e => e.name === game.i18n.localize('tokenlightcond-effect-dark'));
+        console.warn(`TokenLightCondition | CPR effect for ${effectType} not found in interface`);
       }
     }
 
-    const ce = game.dfreds?.effectInterface;
-    const source = game.settings.get('tokenlightcondition', 'effectSource');
-
-    if (!dark) {
-      let added = false;
-      if (source === 'ce') {
-        if (ce) {
-          await game.dfreds.effectInterface.addEffect({ effectName: game.i18n.localize('tokenlightcond-effect-dark'), uuid: selected_token.actor.uuid });
-          added = true;
-        }
-      }
-      if (source === 'ae') {
-        await this.addDarkAE(selected_token);
-        added = true;
-      }
-
-      if (added) {
-        Core.log(`Dark added: ${selected_token.actor.name} via ${source}`);
-      }
-    }
-  }
-
-  static async addDim(selected_token) {
-    const system_pf2e = (game.system.id == 'pf2e');
-    let dim = '';
-    if (system_pf2e) {
-      dim = await selected_token.actor.items.find(e => e.name === game.i18n.localize('tokenlightcond-effect-dim'));
-    } else {
-      if (game.version < 12) {
-        dim = await selected_token.actor.effects.find(e => e.label === game.i18n.localize('tokenlightcond-effect-dim'));
-      } else {
-        dim = await selected_token.actor.effects.find(e => e.name === game.i18n.localize('tokenlightcond-effect-dim'));
-      }
+    // Create standard ActiveEffect (fallback or non-CPR)
+    const effectData = CONSTANTS.getEffectData(effectType);
+    if (!effectData) {
+      console.warn(`TokenLightCondition | Invalid effect type: ${effectType}`);
+      return;
     }
 
-    const ce = game.dfreds?.effectInterface;
-    const source = game.settings.get('tokenlightcondition', 'effectSource');
+    const effect = await ActiveEffect.create(effectData, {
+      keepId: true,
+      parent: selectedToken.actor
+    });
 
-    if (!dim) {
-      let added = false;
-      if (source === 'ce') {
-        if (ce) {
-          await game.dfreds.effectInterface.addEffect({ effectName: game.i18n.localize('tokenlightcond-effect-dim'), uuid: selected_token.actor.uuid });
-          added = true;
-        }
-      }
-      if (source === 'ae') {
-        await this.addDimAE(selected_token);
-        added = true;
-      }
-
-      if (added) {
-        Core.log(`Dim added: ${selected_token.actor.name} via ${source}`);
-      }
-    }
-  }
-
-  static async addDarkAE(selected_token) {
-    // If we haven't found an ouside source, create the default one
-    const system_pf2e = (game.system.id == 'pf2e');
-    if (system_pf2e) {
-      await this.addDarkAE_pf2e(selected_token);
-    } else {
-      await this.addDarkAE_dnd5e(selected_token);
-    }
-  }
-
-  static async addDarkAE_dnd5e(selected_token) {
-    const label = game.i18n.localize('tokenlightcond-effect-dark');
-    let dark = "";
-    if (game.version < 12) {
-      dark = selected_token.actor.effects.find(e => e.label === label);
-    } else {
-      dark = selected_token.actor.effects.find(e => e.name === label);
-    }
-
-    if (!dark) {
-      if (game.version < 12) {
-        dark = {
-          label: label,
-          icon: this.darkIcon,
-          changes: [],
-          flags: { convenientDescription: game.i18n.localize('tokenlightcond-effect-dark-desc') },
-        };
-      } else {
-        dark = {
-          name: label,
-          icon: this.darkIcon,
-          description: game.i18n.localize('tokenlightcond-effect-dark-desc'),
-          flags: {},
-          statuses: [label.toLowerCase()],
-          changes: [],
-        };
-      }
-    }
-
-    if (game.version < 12) {
-      dark.flags['core.statusId'] = '1';
-    }
-    await selected_token.actor.createEmbeddedDocuments('ActiveEffect', [dark]);
-  }
-
-  static async addDarkAE_pf2e(selected_token) {
-    const label = game.i18n.localize('tokenlightcond-effect-dark');
-    let dark = selected_token.actor.items.find(e => e.name === label);
-
-    if (!dark) {
-      dark = game.items.find(e => e.name === label);
-    }
-
-    if (game.version < 12) {
-      dark.flags['core.statusId'] = '1';
-    }
-    await selected_token.actor.createEmbeddedDocuments('Item', [dark]);
-  }
-
-  static async addDimAE(selected_token) {
-    // If we haven't found an ouside source, create the default one
-    const system_pf2e = (game.system.id == 'pf2e');
-    if (system_pf2e) {
-      await this.addDimAE_pf2e(selected_token);
-    } else {
-      await this.addDimAE_dnd5e(selected_token);
-    }
-  }
-
-  static async addDimAE_dnd5e(selected_token) {
-    // If we haven't found an ouside source, create the default one
-    const label = game.i18n.localize('tokenlightcond-effect-dim');
-    let dim = "";
-    if (game.version < 12) {
-      dim = selected_token.actor.effects.find(e => e.label === label);
-    } else {
-      dim = selected_token.actor.effects.find(e => e.name === label);
-    }
-
-    if (!dim) {
-      if (game.version < 12) {
-        dim = {
-          label: label,
-          icon: this.dimIcon,
-          changes: [],
-          flags: { convenientDescription: game.i18n.localize('tokenlightcond-effect-dim-desc') },
-        };
-      } else {
-        dim = {
-          name: label,
-          icon: this.dimIcon,
-          description: game.i18n.localize('tokenlightcond-effect-dim-desc'),
-          flags: {},
-          statuses: [label.toLowerCase()],
-          changes: [],
-        };
-      }
-    }
-
-    if (game.version < 12) {
-      dim.flags['core.statusId'] = '1';
-    }
-    await selected_token.actor.createEmbeddedDocuments('ActiveEffect', [dim]);
-  }
-
-  static async addDimAE_pf2e(selected_token) {
-    // If we haven't found an ouside source, create the default one
-    const label = game.i18n.localize('tokenlightcond-effect-dim');
-    let dim = selected_token.actor.items.find(e => e.name === label);
-
-    if (!dim) {
-      dim = game.items.find(e => e.name === label);
-    }
-
-    if (game.version < 12) {
-      dim.flags['core.statusId'] = '1';
-    }
-    await selected_token.actor.createEmbeddedDocuments('Item', [dim]);
+    console.log(`TokenLightCondition | Created ${effectType} effect:`, effect);
+    return effect;
   }
 }

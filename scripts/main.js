@@ -1,114 +1,218 @@
-
-import { Core } from './utils/core.js';
-import { Lighting } from './utils/lighting.js';
+import { CONSTANTS } from './constants.js';
+import { CoreUtils } from './utils/core.js';
 import { Effects } from './utils/effects.js';
+import { LightingManager } from './utils/lighting.js';
 
-// ******************************************
-// Globals
-// ******************************************
-let inProgressLight = false;
+/**
+ * Module state tracking
+ */
 let moduleState = false;
+let refreshTimeoutId = 0;
+let processingUpdate = false;
 
-// ******************************************
-// Hooks
-// ******************************************
-Hooks.once('init', () => {
-  // Create a socket event handler to listen to incomming sockets and dispatch to callbacks
-  game.socket.on(`module.tokenlightcondition`, (data) => {
-  });
-});
-
+/**
+ * Module ready hook
+ */
 Hooks.once('ready', () => {
-  const module = game.modules.get('tokenlightcondition');
-  const moduleVersion = module.version;
-  console.log(`tokenlightcondition | Ready ${moduleVersion}`);
+  const module = game.modules.get(CONSTANTS.MODULE_ID);
+  console.log(`TokenLightCondition | Ready ${module.version}`);
   moduleState = true;
-
+  if (game.modules.get('chris-premades')?.active && game.settings.get('chris-premades', 'effectInterface') === true) _integrateCPREffects();
   Effects.initializeEffects();
+  ui.effects?.render(true);
 });
 
-Hooks.on('getSceneControlButtons', controls => {
-  if (game.user.isGM) {
-    const lightingControls = controls.find(c => c.name === 'lighting');
-    if (lightingControls) {
-      const index = lightingControls.tools.findIndex(t => t.name === 'clear');
+/**
+ * Add scene control buttons
+ */
+Hooks.on('getSceneControlButtons', (controls) => {
+  TokenLightCondition.getSceneControlButtons(controls);
+});
 
-      lightingControls.tools.splice(index + 1, 0, {
-          name: 'tokenlightcontrol.enable',
-          title: 'Toggle Token Light Condition',
-          icon: 'fa-solid fa-eye-low-vision',
-          toggle: true,
-          active: !!game.settings.get('tokenlightcondition', 'enable'),
-          onClick: (toggled) => Core.toggleTokenLightCond(toggled)
-      });
+/**
+ * Handle token creation - check lighting for new token
+ */
+Hooks.on('createToken', (tokenDocument, options, userId) => {
+  if (!game.user.isGM || !CoreUtils.checkModuleState()) return;
+  const token = tokenDocument.object;
+  if (token) {
+    LightingManager.checkTokenLighting(token);
+  }
+});
+
+/**
+ * Handle token updates - only check lighting when position actually changes
+ */
+Hooks.on('updateToken', (tokenDocument, changes, options, userId) => {
+  if (!game.user.isGM || !CoreUtils.checkModuleState()) return;
+
+  // Only recalculate if position, elevation, or other movement-related properties changed
+  const movementKeys = ['x', 'y', 'elevation', 'hidden'];
+  const hasMovementChange = movementKeys.some((key) => key in changes);
+
+  if (hasMovementChange) {
+    const token = tokenDocument.object;
+    if (token) {
+      debounceTokenLightingCheck(token);
     }
   }
 });
 
-let refreshId = 0;
-Hooks.on('lightingRefresh', (data) => {
-  if (game.user.isGM) {
-    if (Core.checkModuleState()) {
-        const delay = game.settings.get('tokenlightcondition', 'delaycalculations');
-        if (delay !== 0) {
-            clearTimeout(refreshId);
-            refreshId = setTimeout(processLightingRefresh, delay);
-        }
-        else processLightingRefresh();
-    }
+/**
+ * Handle ambient light changes - recalculate all tokens when lighting sources change
+ */
+Hooks.on('updateAmbientLight', (lightDocument, changes, options, userId) => {
+  if (!game.user.isGM || !CoreUtils.checkModuleState()) return;
+  debounceAllTokensLightingCheck();
+});
+
+Hooks.on('createAmbientLight', (lightDocument, options, userId) => {
+  if (!game.user.isGM || !CoreUtils.checkModuleState()) return;
+  debounceAllTokensLightingCheck();
+});
+
+Hooks.on('deleteAmbientLight', (lightDocument, options, userId) => {
+  if (!game.user.isGM || !CoreUtils.checkModuleState()) return;
+  debounceAllTokensLightingCheck();
+});
+
+/**
+ * Handle scene updates that affect lighting
+ */
+Hooks.on('updateScene', (sceneDocument, changes, options, userId) => {
+  if (!game.user.isGM || !CoreUtils.checkModuleState()) return;
+  if (sceneDocument.id !== canvas.scene?.id) return;
+
+  // Only recalculate if lighting-related properties changed
+  const lightingKeys = ['environment.darknessLevel', 'environment.globalLight'];
+  const hasLightingChange = lightingKeys.some((key) => foundry.utils.hasProperty(changes, key));
+
+  if (hasLightingChange) {
+    debounceAllTokensLightingCheck();
   }
 });
 
-Hooks.on('refreshToken', (token) => {
-  if (moduleState) {
-    if (game.user.isGM) {
-      if (Core.checkModuleState()) {
-        Core.isValidActor(token);
-      }
-    }
-  }
-})
+/**
+ * Handle token light updates (when tokens themselves emit light)
+ */
+Hooks.on('updateToken', (tokenDocument, changes, options, userId) => {
+  if (!game.user.isGM || !CoreUtils.checkModuleState()) return;
 
+  // Check if light-related properties changed
+  const lightKeys = ['light.bright', 'light.dim', 'light.luminosity', 'light.angle', 'light.rotation'];
+  const hasLightChange = lightKeys.some((key) => foundry.utils.hasProperty(changes, key));
+
+  if (hasLightChange) {
+    debounceAllTokensLightingCheck();
+  }
+});
+
+/**
+ * Handle token HUD rendering - only show HUD, don't recalculate lighting
+ */
 Hooks.on('renderTokenHUD', (tokenHUD, html, app) => {
-  const showHud = game.settings.get('tokenlightcondition', 'showTokenHud');
-  if (showHud) {
-    if (Core.checkModuleState()) {
-      let selected_token = Core.find_selected_token(tokenHUD);
-      if (Core.isValidActor(selected_token)) {
-        if (game.user.isGM) {
-          show_gm_tokenhud(selected_token, tokenHUD,html);
-        } else {
-          show_player_tokenhud(selected_token, tokenHUD,html);
+  const showHud = game.settings.get(CONSTANTS.MODULE_ID, 'showTokenHud');
+  if (!showHud || !CoreUtils.checkModuleState()) return;
+  const selectedToken = CoreUtils.findSelectedToken(tokenHUD);
+  if (!CoreUtils.isValidActor(selectedToken)) return;
+  if (game.user.isGM) LightingManager.showLightLevelBox(selectedToken, tokenHUD, html);
+  else LightingManager.showLightLevelPlayerBox(selectedToken, tokenHUD, html);
+});
+
+/**
+ * Debounced function to check lighting for a single token
+ */
+function debounceTokenLightingCheck(token) {
+  const delay = game.settings.get(CONSTANTS.MODULE_ID, 'delaycalculations');
+  if (delay !== 0) {
+    clearTimeout(token._lightingTimeout);
+    token._lightingTimeout = setTimeout(() => {
+      LightingManager.checkTokenLighting(token);
+    }, delay);
+  } else {
+    LightingManager.checkTokenLighting(token);
+  }
+}
+
+/**
+ * Debounced function to check lighting for all tokens
+ */
+function debounceAllTokensLightingCheck() {
+  if (processingUpdate) return;
+
+  const delay = game.settings.get(CONSTANTS.MODULE_ID, 'delaycalculations');
+  if (delay !== 0) {
+    clearTimeout(refreshTimeoutId);
+    refreshTimeoutId = setTimeout(processAllTokensLighting, delay);
+  } else {
+    processAllTokensLighting();
+  }
+}
+
+/**
+ * Process lighting for all tokens with concurrency protection
+ */
+async function processAllTokensLighting() {
+  if (processingUpdate) return;
+  processingUpdate = true;
+  try {
+    await LightingManager.checkAllTokensLightingRefresh();
+  } finally {
+    processingUpdate = false;
+  }
+}
+
+/**
+ * Main module class
+ */
+export class TokenLightCondition {
+  /**
+   * Add the token light condition toggle to the lighting controls
+   * @param {Object} controls - The scene controls object
+   */
+  static getSceneControlButtons(controls) {
+    if (!game.user.isGM) return;
+    try {
+      const lightingControl = controls.lighting;
+      if (!lightingControl?.tools) return;
+      lightingControl.tools['tokenlightcontrol-enable'] = {
+        name: 'tokenlightcontrol-enable',
+        order: 999,
+        title: 'Toggle Token Light Condition',
+        icon: 'fa-solid fa-eye-low-vision',
+        toggle: true,
+        active: game.settings.get(CONSTANTS.MODULE_ID, 'enable'),
+        onChange: (event, active) => {
+          CoreUtils.toggleTokenLightCondition(active);
         }
-      }
+      };
+    } catch (error) {
+      console.error('TokenLightCondition | Error adding scene control button:', error);
     }
   }
-});
+}
 
-Hooks.on('renderSettingsConfig', (app, html, data) => {
-  $('<div>').addClass('form-group group-header').html(game.i18n.localize('tokenlightcond-config-debug')).insertBefore($('[name="tokenlightcondition.logLevel"]').parents('div.form-group:first'));
-  $('<div>').addClass('form-group group-header').html(game.i18n.localize('tokenlightcond-config-general')).insertBefore($('[name="tokenlightcondition.showTokenHud"]').parents('div.form-group:first'));
-});
+/**
+ * Integrate lighting effects with Chris's Premades
+ * @private
+ */
+async function _integrateCPREffects() {
+  try {
+    const cprItem = game.items.find((item) => item.flags['chris-premades']?.effectInterface);
+    if (!cprItem) {
+      console.log('TokenLightCondition | CPR Effect Interface not found');
+      return;
+    }
 
-// ******************************************
-// Functions
-// ******************************************
-
-async function processLightingRefresh() {
-  if (!inProgressLight) {
-    inProgressLight = true;
-    await Lighting.check_all_tokens_lightingRefresh();
-    inProgressLight = false;
-  } else {
-    // process is already underway...
-    // Core.log("lightingRefresh Busy");
+    for (const effectType of ['dark', 'dim']) {
+      const existingEffect = cprItem.effects.find((effect) => effect.flags?.[CONSTANTS.MODULE_ID]?.type === effectType);
+      if (!existingEffect) {
+        const effectData = CONSTANTS.getEffectData(effectType);
+        await ActiveEffect.create(effectData, { keepId: true, parent: cprItem });
+      }
+    }
+    console.log('TokenLightCondition | CPR integration complete');
+  } catch (error) {
+    console.error('TokenLightCondition | CPR integration failed:', error);
   }
-}
-
-function show_gm_tokenhud(selected_token, tokenHUD,html) {
-  Lighting.show_lightLevel_box(selected_token, tokenHUD,html);
-}
-
-function show_player_tokenhud(selected_token, tokenHUD,html) {
-  Lighting.show_lightLevel_player_box(selected_token, tokenHUD,html);
 }

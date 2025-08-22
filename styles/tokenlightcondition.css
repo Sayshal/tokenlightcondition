@@ -1,0 +1,19 @@
+.control-icon {
+  &.token-light-condition {
+    i {
+      pointer-events: none;
+    }
+
+    &.bright {
+      color: rgb(255 215 0);
+    }
+
+    &.dim {
+      color: rgb(192 192 192);
+    }
+
+    &.dark {
+      color: rgb(102 102 102);
+    }
+  }
+}

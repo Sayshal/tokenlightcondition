@@ -1,120 +1,102 @@
-import { Core } from './utils/core.js';
+import { CONSTANTS } from './constants.js';
 import { Effects } from './utils/effects.js';
-import { Lighting } from './utils/lighting.js';
+import { LightingManager } from './utils/lighting.js';
 
+/**
+ * Handle module setup and configuration
+ */
 Hooks.once('setup', () => {
-
- game.settings.register('tokenlightcondition', 'enable', {
+  /**
+   * Register the module enable setting
+   */
+  game.settings.register(CONSTANTS.MODULE_ID, 'enable', {
     name: 'tokenlightcondition.enable',
     scope: 'world',
     config: false,
     type: Boolean,
     default: true,
-    onChange: value => {
-        if (!canvas.ready || !game.user.isGM) {
-            Core.log('config OnChange');
-            return;
+    onChange: (value) => {
+      if (!canvas.ready || !game.user.isGM) return;
+      if (ui.controls.control?.name === 'lighting') {
+        const tool = ui.controls.control.tools['tokenlightcontrol-enable'];
+        if (tool) {
+          tool.active = value;
+          ui.controls.render();
         }
-
-        if (ui.controls.control.name === 'lighting') {
-            ui.controls.control.tools.find(tool => tool.name === 'tokenlightcontrol.enable').active = value;
-            ui.controls.render();
-        }
+      }
     }
   });
+});
 
-})
-
+/**
+ * Initialize module settings when ready
+ */
 Hooks.once('ready', () => {
+  const module = game.modules.get(CONSTANTS.MODULE_ID);
+  console.log(`TokenLightCondition | Initializing ${module.version}`);
+  _registerSettings();
+});
 
-  const module = game.modules.get('tokenlightcondition');
-  const moduleVersion = module.version;
-  console.log(`tokenlightcondition | Initializing ${moduleVersion}`);
-
-  game.settings.register('tokenlightcondition', 'logLevel', {
-    name: game.i18n.localize('tokenlightcond-config-logLevel-name'),
-    hint: game.i18n.localize('tokenlightcond-config-logLevel-hint'),
-    scope: 'client',
-    config: true,
-    type: String,
-    choices: {
-      'none': game.i18n.localize("tokenlightcond-config-logLevel-none-choice"),
-      'debug': game.i18n.localize("tokenlightcond-config-logLevel-debuglevel-choice"),
-      'log': game.i18n.localize("tokenlightcond-config-logLevel-loglevel-choice")
-    },
-    default: 'none'
-  });
-
-  game.settings.register('tokenlightcondition', 'showTokenHud', {
-    name: game.i18n.localize("tokenlightcond-config-showTokenHud-name"),
-    hint: game.i18n.localize("tokenlightcond-config-showTokenHud-hint"),
+/**
+ * Register all module settings
+ * @private
+ */
+function _registerSettings() {
+  /**
+   * Show TokenHUD setting
+   */
+  game.settings.register(CONSTANTS.MODULE_ID, 'showTokenHud', {
+    name: game.i18n.localize('TOKENLIGHTCONDITION.Settings.ShowTokenHud.Name'),
+    hint: game.i18n.localize('TOKENLIGHTCONDITION.Settings.ShowTokenHud.Hint'),
     scope: 'client',
     config: true,
     default: true,
-    type: Boolean,
+    type: Boolean
   });
 
-  let choices = {
-    'none': game.i18n.localize("tokenlightcond-effectSource-none")
-  };
-  let defaultSource = 'none';
-  let findATL = game.modules.get('ATL')?.active;
-  let findCubDark = game.cub?.getCondition(game.i18n.localize("tokenlightcond-effect-dark"));
-  let findCubDim = game.cub?.getCondition(game.i18n.localize("tokenlightcond-effect-dim"));
-  let findCE = game.dfreds?.effectInterface;
-
-  if (findATL) {
-    choices['ae'] = game.i18n.localize("tokenlightcond-effectSource-ae");
-    defaultSource = 'ae';
-  }
-
-  const system_pf2e = (game.system.id == 'pf2e');
-  if (system_pf2e) {
-    choices['ae'] = game.i18n.localize("tokenlightcond-effectSource-ae");
-    defaultSource = 'ae';
-  }
-
-  if (findCE) {
-    choices['ce'] = game.i18n.localize("tokenlightcond-effectSource-ce");
-    defaultSource = 'ce';
-  }
-
-  game.settings.register('tokenlightcondition', 'effectSource', {
-    name: game.i18n.localize("tokenlightcond-effectSource-name"),
-    hint: game.i18n.localize("tokenlightcond-effectSource-hint"),
+  /**
+   * Add effects setting
+   */
+  game.settings.register(CONSTANTS.MODULE_ID, 'addEffects', {
+    name: game.i18n.localize('TOKENLIGHTCONDITION.Settings.AddEffects.Name'),
+    hint: game.i18n.localize('TOKENLIGHTCONDITION.Settings.AddEffects.Hint'),
     scope: 'world',
     config: true,
-    type: String,
-    choices,
-    default: defaultSource,
-    onChange: value => {
-      if (!canvas.ready || !game.user.isGM) {
-          return;
+    type: Boolean,
+    default: true,
+    onChange: (value) => {
+      if (canvas.ready && game.user.isGM) {
+        if (value) {
+          Effects.initializeEffects();
+        } else {
+          // Clear all existing effects when disabled
+          LightingManager.checkAllTokensLightingRefresh();
+        }
       }
-
-      Effects.initializeEffects();
     }
   });
 
-  game.settings.register('tokenlightcondition', 'globalIllumination', {
-    name: game.i18n.localize("tokenlightcond-config-globalIllumination-name"),
-    hint: game.i18n.localize("tokenlightcond-config-globalIllumination-hint"),
+  /**
+   * Global illumination setting
+   */
+  game.settings.register(CONSTANTS.MODULE_ID, 'globalIllumination', {
+    name: game.i18n.localize('TOKENLIGHTCONDITION.Settings.GlobalIllumination.Name'),
+    hint: game.i18n.localize('TOKENLIGHTCONDITION.Settings.GlobalIllumination.Hint'),
     scope: 'world',
     config: true,
     default: false,
     type: Boolean,
-    onChange: value => {
-      if (!canvas.ready || !game.user.isGM) {
-        return;
-      }
-
-      Lighting.check_all_tokens_lightingRefresh();
+    onChange: (value) => {
+      if (canvas.ready && game.user.isGM) LightingManager.checkAllTokensLightingRefresh();
     }
   });
 
-  game.settings.register('tokenlightcondition', 'delaycalculations', {
-    name: game.i18n.localize("tokenlightcond-config-delaycalculations-name"),
-    hint: game.i18n.localize("tokenlightcond-config-delaycalculations-hint"),
+  /**
+   * Delay calculations setting
+   */
+  game.settings.register(CONSTANTS.MODULE_ID, 'delaycalculations', {
+    name: game.i18n.localize('TOKENLIGHTCONDITION.Settings.DelayCalculations.Name'),
+    hint: game.i18n.localize('TOKENLIGHTCONDITION.Settings.DelayCalculations.Hint'),
     scope: 'world',
     config: true,
     default: 0,
@@ -123,18 +105,18 @@ Hooks.once('ready', () => {
       min: 0,
       max: 3000,
       step: 50
-    },
-    onChange: value => {}
+    }
   });
 
-  game.settings.register('tokenlightcondition', 'negativelights', {
-    name: game.i18n.localize("tokenlightcond-config-negativelights-name"),
-    hint: game.i18n.localize("tokenlightcond-config-negativelights-hint"),
+  /**
+   * Negative lights setting
+   */
+  game.settings.register(CONSTANTS.MODULE_ID, 'negativelights', {
+    name: game.i18n.localize('TOKENLIGHTCONDITION.Settings.NegativeLights.Name'),
+    hint: game.i18n.localize('TOKENLIGHTCONDITION.Settings.NegativeLights.Hint'),
     scope: 'world',
     config: true,
     default: false,
-    type: Boolean,
-    onChange: value => {}
+    type: Boolean
   });
-
-});
+}
