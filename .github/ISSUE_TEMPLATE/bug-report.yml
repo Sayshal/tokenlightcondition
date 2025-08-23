@@ -36,9 +36,9 @@ body:
   - type: input
     id: system-version
     attributes:
-      label: D&D Version
+      label: System Version
       description: What version of the system?
-      placeholder: '5.1.2'
+      placeholder: '5E 5.1.2'
     validations:
       required: true
   - type: textarea
