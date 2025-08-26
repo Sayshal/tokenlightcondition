@@ -78,8 +78,16 @@ export class LightingManager {
   static async checkTokenLighting(placedToken) {
     if (!game.user.isGM) return;
     if (!CoreUtils.isValidActor(placedToken)) return;
-    if (this._hasValidHp(placedToken)) await this.findTokenLighting(placedToken);
-    else await Effects.clearEffects(placedToken);
+    if (!CoreUtils.canProcessToken(placedToken.id)) return; // Add circuit breaker
+
+    console.log('TokenLightCondition | checkTokenLighting for token:', placedToken.id);
+
+    if (this._hasValidHp(placedToken)) {
+      await this.findTokenLighting(placedToken);
+    } else {
+      console.log('TokenLightCondition | Token has no valid HP, clearing effects');
+      await Effects.clearEffects(placedToken);
+    }
   }
 
   /**
@@ -97,13 +105,24 @@ export class LightingManager {
    * @param {Token} selectedToken - The token to analyze
    * @returns {Promise<string>} The lighting condition ('bright', 'dim', or 'dark')
    */
-  static async findTokenLighting(selectedToken) {
-    if (this.processingTokens.has(selectedToken.id)) {
-      const cached = selectedToken.actor.getFlag(CONSTANTS.MODULE_ID, 'lightLevel') || 'bright';
-      return cached;
-    }
-    this.processingTokens.add(selectedToken.id);
-    try {
+static async findTokenLighting(selectedToken) {
+  // Check if we're already updating this token
+  if (selectedToken.actor?.getFlag(CONSTANTS.MODULE_ID, 'updating')) {
+    console.log('TokenLightCondition | Token is being updated, skipping lighting check');
+    const cached = selectedToken.actor.getFlag(CONSTANTS.MODULE_ID, 'lightLevel') || 'bright';
+    return cached;
+  }
+
+  if (this.processingTokens.has(selectedToken.id)) {
+    console.log('TokenLightCondition | Token already processing, returning cached result');
+    const cached = selectedToken.actor.getFlag(CONSTANTS.MODULE_ID, 'lightLevel') || 'bright';
+    return cached;
+  }
+  
+  this.processingTokens.add(selectedToken.id);
+  console.log('TokenLightCondition | Starting lighting analysis for token:', selectedToken.id);
+  
+  try {
       let lightLevel = 0;
       let globalIlluminationActive = false;
       const globalConfig = game.settings.get(CONSTANTS.MODULE_ID, 'globalIllumination');
@@ -201,18 +220,34 @@ export class LightingManager {
       else if (lightLevel === 1) lightLevelText = 'dim';
       else lightLevelText = 'bright';
       console.log('TokenLightCondition | Final light level for token:', lightLevelText, 'lightLevel:', lightLevel, 'globalActive:', globalIlluminationActive);
-      const currentLightLevel = selectedToken.actor.getFlag(CONSTANTS.MODULE_ID, 'lightLevel');
-      if (currentLightLevel !== lightLevelText) {
-        await Effects.clearEffects(selectedToken);
-        if (lightLevel === 0) await Effects.addDark(selectedToken);
-        else if (lightLevel === 1) await Effects.addDim(selectedToken);
+    const currentLightLevel = selectedToken.actor.getFlag(CONSTANTS.MODULE_ID, 'lightLevel');
+    if (currentLightLevel !== lightLevelText) {
+      console.log('TokenLightCondition | Light level changed from', currentLightLevel, 'to', lightLevelText);
+      await Effects.clearEffects(selectedToken);
+      if (lightLevel === 0) {
+        console.log('TokenLightCondition | Adding dark effect');
+        await Effects.addDark(selectedToken);
+      } else if (lightLevel === 1) {
+        console.log('TokenLightCondition | Adding dim effect');
+        await Effects.addDim(selectedToken);
       }
-      await selectedToken.actor.setFlag(CONSTANTS.MODULE_ID, 'lightLevel', lightLevelText);
-      return lightLevelText;
-    } finally {
-      this.processingTokens.delete(selectedToken.id);
     }
+    
+    // Set the flag with our special option to prevent triggering updates
+    await selectedToken.actor.setFlag(CONSTANTS.MODULE_ID, 'lightLevel', lightLevelText, {
+      tokenlightcondition: true
+    });
+    
+    return lightLevelText;
+    
+  } catch (error) {
+    console.error('TokenLightCondition | Error in findTokenLighting:', error);
+    return 'bright';
+  } finally {
+    console.log('TokenLightCondition | Cleaning up processing token:', selectedToken.id);
+    this.processingTokens.delete(selectedToken.id);
   }
+}
 
   /**
    * Calculate the angle between token and light source

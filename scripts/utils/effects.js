@@ -94,21 +94,37 @@ export class Effects {
    * @param {Token} selectedToken - The token to clear effects from
    * @private
    */
-  static async _clearEffectsPf2e(selectedToken) {
+static async _clearEffectsPf2e(selectedToken) {
+  try {
+    // Set updating flag  
+    await selectedToken.actor.setFlag(CONSTANTS.MODULE_ID, 'updating', true);
+    
     const effectNames = ['Dim', 'Dark'].map((type) => game.i18n.localize(`TOKENLIGHTCONDITION.Effects.${type}.Name`));
     const itemsToRemove = selectedToken.actor.items.filter((item) => effectNames.includes(item.name));
+    
     if (itemsToRemove.length > 0) {
       const itemIds = itemsToRemove.map((item) => item.id);
-      await selectedToken.actor.deleteEmbeddedDocuments('Item', itemIds);
+      await selectedToken.actor.deleteEmbeddedDocuments('Item', itemIds, {
+        tokenlightcondition: true
+      });
+      console.log('TokenLightCondition | Cleared PF2e effects for token:', selectedToken.id);
     }
+  } finally {
+    // Clear updating flag
+    await selectedToken.actor.unsetFlag(CONSTANTS.MODULE_ID, 'updating');
   }
+}
 
   /**
    * Clear effects for D&D 5e
    * @param {Token} selectedToken - The token to clear effects from
    * @private
    */
-  static async _clearEffectsDnd5e(selectedToken) {
+static async _clearEffectsDnd5e(selectedToken) {
+  try {
+    // Set updating flag
+    await selectedToken.actor.setFlag(CONSTANTS.MODULE_ID, 'updating', true);
+    
     const effectsToRemove = selectedToken.actor.effects.filter((effect) => {
       const isOurEffect = effect.flags?.[CONSTANTS.MODULE_ID]?.type;
       return isOurEffect;
@@ -116,9 +132,17 @@ export class Effects {
 
     if (effectsToRemove.length > 0) {
       const validEffectIds = effectsToRemove.map((effect) => effect.id);
-      await selectedToken.actor.deleteEmbeddedDocuments('ActiveEffect', validEffectIds);
+      await selectedToken.actor.deleteEmbeddedDocuments('ActiveEffect', validEffectIds, {
+        tokenlightcondition: true
+      });
+      console.log('TokenLightCondition | Cleared effects for token:', selectedToken.id);
     }
+  } finally {
+    // Clear updating flag
+    await selectedToken.actor.unsetFlag(CONSTANTS.MODULE_ID, 'updating');
   }
+}
+
 
   /**
    * Add dark effect to a token
@@ -195,35 +219,62 @@ export class Effects {
    * @param {string} effectType - The effect type
    * @private
    */
-  static async _addCoreEffect(selectedToken, effectType) {
-    console.log(`TokenLightCondition | Adding ${effectType} effect`, { selectedToken });
+static async _addCoreEffect(selectedToken, effectType) {
+  console.log(`TokenLightCondition | _addCoreEffect starting - Token: ${selectedToken.id}, Effect: ${effectType}`);
+  
+  try {
+    // Set updating flag BEFORE any operations
+    await selectedToken.actor.setFlag(CONSTANTS.MODULE_ID, 'updating', true);
 
     if (game.modules.get('chris-premades')?.active && game.settings.get('chris-premades', 'effectInterface') === true) {
+      console.log('TokenLightCondition | Attempting CPR integration');
       const cprEffect = this._findCPREffect(effectType);
       if (cprEffect) {
         const effectData = cprEffect.toObject();
         effectData.statuses = [effectType];
-        const effect = await ActiveEffect.create(effectData, { keepId: true, parent: selectedToken.actor });
-        console.log(`TokenLightCondition | Created temporary CPR effect "${cprEffect.name}":`, effect);
+        console.log('TokenLightCondition | Creating CPR effect with data:', effectData);
+        
+        const effect = await ActiveEffect.create(effectData, { 
+          keepId: true, 
+          parent: selectedToken.actor,
+          tokenlightcondition: true // Add our flag to the creation options
+        });
+        
+        console.log(`TokenLightCondition | Successfully created CPR effect "${cprEffect.name}":`, effect?.id);
         return effect;
-      } else {
-        console.warn(`TokenLightCondition | CPR effect for ${effectType} not found in interface`);
       }
     }
 
-    // Create standard ActiveEffect (fallback or non-CPR)
+    // Create standard ActiveEffect
+    console.log('TokenLightCondition | Creating standard ActiveEffect');
     const effectData = CONSTANTS.getEffectData(effectType);
     if (!effectData) {
-      console.warn(`TokenLightCondition | Invalid effect type: ${effectType}`);
+      console.error(`TokenLightCondition | Invalid effect type: ${effectType}`);
       return;
     }
 
+    console.log('TokenLightCondition | Effect data:', effectData);
+
     const effect = await ActiveEffect.create(effectData, {
       keepId: true,
-      parent: selectedToken.actor
+      parent: selectedToken.actor,
+      tokenlightcondition: true // Add our flag to prevent recursive updates
     });
 
-    console.log(`TokenLightCondition | Created ${effectType} effect:`, effect);
+    console.log(`TokenLightCondition | Successfully created ${effectType} effect:`, effect?.id);
     return effect;
+    
+  } catch (error) {
+    console.error(`TokenLightCondition | Error creating ${effectType} effect:`, error);
+    throw error;
+  } finally {
+    // Always clear the updating flag, even if there was an error
+    try {
+      await selectedToken.actor.unsetFlag(CONSTANTS.MODULE_ID, 'updating');
+      console.log('TokenLightCondition | Cleared updating flag for token:', selectedToken.id);
+    } catch (flagError) {
+      console.error('TokenLightCondition | Error clearing updating flag:', flagError);
+    }
   }
+}
 }

@@ -32,11 +32,20 @@ Hooks.on('getSceneControlButtons', (controls) => {
 /**
  * Handle token creation - check lighting for new token
  */
-Hooks.on('createToken', (tokenDocument, options, userId) => {
+Hooks.on('createToken', async (tokenDocument, options, userId) => {
   if (!game.user.isGM || !CoreUtils.checkModuleState()) return;
+
+  console.log('TokenLightCondition | createToken hook fired:', tokenDocument.id);
+
   const token = tokenDocument.object;
-  if (token) {
-    LightingManager.checkTokenLighting(token);
+  if (token && !token.actor?.getFlag(CONSTANTS.MODULE_ID, 'updating')) {
+    console.log('TokenLightCondition | Processing new token lighting');
+    // Add a small delay to ensure token is fully initialized
+    setTimeout(() => {
+      LightingManager.checkTokenLighting(token);
+    }, 100);
+  } else {
+    console.log('TokenLightCondition | Skipping token processing - updating flag present');
   }
 });
 
@@ -45,16 +54,44 @@ Hooks.on('createToken', (tokenDocument, options, userId) => {
  */
 Hooks.on('updateToken', (tokenDocument, changes, options, userId) => {
   if (!game.user.isGM || !CoreUtils.checkModuleState()) return;
+  
+  // Skip processing if this update is from our own effect management
+  if (options?.tokenlightcondition || tokenDocument.actor?.getFlag(CONSTANTS.MODULE_ID, 'updating')) {
+    console.log('TokenLightCondition | Skipping update - internal effect processing');
+    return;
+  }
+  
+  console.log('TokenLightCondition | updateToken hook fired', {
+    tokenId: tokenDocument.id,
+    changes: Object.keys(changes),
+    userId
+  });
 
-  // Only recalculate if position, elevation, or other movement-related properties changed
+  // Only process for actual movement or light changes, not effect-related changes
   const movementKeys = ['x', 'y', 'elevation', 'hidden'];
   const hasMovementChange = movementKeys.some((key) => key in changes);
 
+  const lightKeys = ['light.bright', 'light.dim', 'light.luminosity', 'light.angle', 'light.rotation'];
+  const hasLightChange = lightKeys.some((key) => foundry.utils.hasProperty(changes, key));
+
+  // Ignore changes that are just effects or flags
+  const effectKeys = ['effects', 'flags'];
+  const isOnlyEffectChange = Object.keys(changes).every(key => effectKeys.includes(key));
+  
+  if (isOnlyEffectChange) {
+    console.log('TokenLightCondition | Skipping update - only effect/flag changes');
+    return;
+  }
+
   if (hasMovementChange) {
+    console.log('TokenLightCondition | Movement detected, checking single token');
     const token = tokenDocument.object;
     if (token) {
       debounceTokenLightingCheck(token);
     }
+  } else if (hasLightChange) {
+    console.log('TokenLightCondition | Light change detected, checking all tokens');
+    debounceAllTokensLightingCheck();
   }
 });
 
@@ -93,21 +130,6 @@ Hooks.on('updateScene', (sceneDocument, changes, options, userId) => {
 });
 
 /**
- * Handle token light updates (when tokens themselves emit light)
- */
-Hooks.on('updateToken', (tokenDocument, changes, options, userId) => {
-  if (!game.user.isGM || !CoreUtils.checkModuleState()) return;
-
-  // Check if light-related properties changed
-  const lightKeys = ['light.bright', 'light.dim', 'light.luminosity', 'light.angle', 'light.rotation'];
-  const hasLightChange = lightKeys.some((key) => foundry.utils.hasProperty(changes, key));
-
-  if (hasLightChange) {
-    debounceAllTokensLightingCheck();
-  }
-});
-
-/**
  * Handle token HUD rendering - only show HUD, don't recalculate lighting
  */
 Hooks.on('renderTokenHUD', (tokenHUD, html, app) => {
@@ -123,11 +145,20 @@ Hooks.on('renderTokenHUD', (tokenHUD, html, app) => {
  * Debounced function to check lighting for a single token
  */
 function debounceTokenLightingCheck(token) {
+  // Don't process if token is being updated by us
+  if (token.actor?.getFlag(CONSTANTS.MODULE_ID, 'updating')) {
+    console.log('TokenLightCondition | Skipping debounced check - token updating');
+    return;
+  }
+  
   const delay = game.settings.get(CONSTANTS.MODULE_ID, 'delaycalculations');
   if (delay !== 0) {
     clearTimeout(token._lightingTimeout);
     token._lightingTimeout = setTimeout(() => {
-      LightingManager.checkTokenLighting(token);
+      // Check again before processing
+      if (!token.actor?.getFlag(CONSTANTS.MODULE_ID, 'updating')) {
+        LightingManager.checkTokenLighting(token);
+      }
     }, delay);
   } else {
     LightingManager.checkTokenLighting(token);

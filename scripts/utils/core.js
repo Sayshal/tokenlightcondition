@@ -6,6 +6,23 @@ import { LightingManager } from './lighting.js';
  * Core utility functions for Token Light Condition module
  */
 export class CoreUtils {
+  static processingCircuitBreaker = new Map();
+
+  // Add this method
+  static canProcessToken(tokenId) {
+    const now = Date.now();
+    const lastProcessed = this.processingCircuitBreaker.get(tokenId);
+
+    // Prevent processing the same token more than once every 500ms
+    if (lastProcessed && now - lastProcessed < 500) {
+      console.log('TokenLightCondition | Circuit breaker preventing rapid processing of token:', tokenId);
+      return false;
+    }
+
+    this.processingCircuitBreaker.set(tokenId, now);
+    return true;
+  }
+
   /**
    * Check if the module is currently enabled
    * @returns {boolean} True if module is enabled
