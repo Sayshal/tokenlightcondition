@@ -1,32 +1,180 @@
 import { CONSTANTS } from '../constants.js';
 import { CoreUtils } from './core.js';
-import { Effects } from './effects.js';
+import { effectQueue } from '../main.js'; // Import the effect queue
 
 /**
- * Manages lighting calculations and effects for tokens
+ * Manages lighting calculations for tokens
  */
 export class LightingManager {
-  static processingTokens = new Set();
+/**
+ * Calculate lighting for a single token WITHOUT creating effects
+ * @param {Token} placedToken - The token to check
+ */
+static async calculateTokenLightingOnly(placedToken) {
+  if (!game.user.isGM) return;
+  if (!CoreUtils.isValidActor(placedToken)) return;
+  if (!CoreUtils.canProcessToken(placedToken.id)) return;
+
+  console.log('TokenLightCondition | calculateTokenLightingOnly for token:', placedToken.id);
+
+  if (this._hasValidHp(placedToken)) {
+    const lightLevel = await this.findTokenLightingOnly(placedToken);
+    
+    // Get current light level
+    const currentLightLevel = placedToken.actor.getFlag(CONSTANTS.MODULE_ID, 'lightLevel');
+    
+    // If light level changed, queue the effect update
+    if (currentLightLevel !== lightLevel) {
+      console.log(`TokenLightCondition | Light level changed from ${currentLightLevel} to ${lightLevel}, queuing effect update`);
+      
+      // Safety check - ensure effectQueue is available
+      if (typeof effectQueue !== 'undefined') {
+        effectQueue.add(placedToken.id, lightLevel);
+      } else {
+        console.warn('TokenLightCondition | effectQueue not available yet');
+      }
+    }
+  } else {
+    console.log('TokenLightCondition | Token has no valid HP, queuing effect clear');
+    if (typeof effectQueue !== 'undefined') {
+      effectQueue.add(placedToken.id, 'clear');
+    }
+  }
+}
+
+  /**
+   * Calculate lighting for all tokens WITHOUT creating effects
+   */
+  static async calculateAllTokensLightingOnly() {
+    const promises = canvas.tokens.placeables.map((token) => this.calculateTokenLightingOnly(token));
+    await Promise.all(promises);
+  }
+
+  /**
+   * Determine the lighting condition for a token WITHOUT creating effects
+   * @param {Token} selectedToken - The token to analyze
+   * @returns {Promise<string>} The lighting condition ('bright', 'dim', or 'dark')
+   */
+  static async findTokenLightingOnly(selectedToken) {
+    console.log('TokenLightCondition | Starting lighting analysis for token:', selectedToken.id);
+    
+    try {
+      let lightLevel = 0;
+      let globalIlluminationActive = false;
+      const globalConfig = game.settings.get(CONSTANTS.MODULE_ID, 'globalIllumination');
+      
+      // Check global illumination first
+      if (globalConfig) {
+        const globalLight = canvas.scene.environment.globalLight.enabled;
+        const darkness = canvas.scene.environment.darknessLevel;
+        const globalLightThreshold = canvas.scene.environment.globalLight.darkness.max ?? 1;
+        if (globalLight && globalLightThreshold && darkness <= globalLightThreshold) {
+          lightLevel = 2;
+          globalIlluminationActive = true;
+          console.log('TokenLightCondition | Global illumination active, setting to bright light');
+          
+          if (this._isTokenUnderLightRestrictingTile(selectedToken)) {
+            console.log('TokenLightCondition | Token under light-restricting tile, overriding to dark');
+            lightLevel = 0;
+            globalIlluminationActive = false;
+          }
+        }
+      }
+
+      // Process individual light sources if needed
+      const negativeLights = game.settings.get(CONSTANTS.MODULE_ID, 'negativelights');
+      if (!globalIlluminationActive || negativeLights) {
+        const lightSources = [...canvas.lighting.objects.children, ...canvas.tokens.placeables];
+        const sortedLights = lightSources.sort((a, b) => (b.document.light ?? b.document.config).luminosity - (a.document.light ?? a.document.config).luminosity);
+        
+        for (let i = 0; i < sortedLights.length; i++) {
+          const lightSource = sortedLights[i];
+          const isToken = Boolean(lightSource.light);
+          let source = isToken ? lightSource.light : lightSource.lightSource;
+          
+          if (source && source.active) {
+            let tokenDistance = CoreUtils.getCalculatedDistance(selectedToken, source);
+            let lightDimDis = source.data.dim;
+            let lightBrtDis = source.data.bright;
+            const negativeLight = negativeLights && source.data.luminosity < 0;
+            
+            console.log(
+              'TokenLightCondition | Light analysis - distance:',
+              tokenDistance,
+              'dim:',
+              lightDimDis,
+              'bright:',
+              lightBrtDis,
+              'negative:',
+              negativeLight
+            );
+
+            if (tokenDistance <= lightDimDis || tokenDistance <= lightBrtDis) {
+              let inLight = this._checkLightAngle(selectedToken, lightSource, source);
+              
+              if (inLight && !CoreUtils.getWallCollision(selectedToken, lightSource)) {
+                if (tokenDistance <= lightDimDis && lightDimDis > 0) {
+                  if (negativeLight && lightLevel > 1) {
+                    lightLevel = 1;
+                  } else if (!negativeLight && lightLevel < 1) {
+                    lightLevel = 1;
+                  }
+                }
+                if (tokenDistance <= lightBrtDis && lightBrtDis > 0) {
+                  if (negativeLight && lightLevel > 0) {
+                    lightLevel = 0;
+                  } else if (!negativeLight && lightLevel < 2 && !globalIlluminationActive) {
+                    lightLevel = 2;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      
+      let lightLevelText = 'bright';
+      if (lightLevel === 0) lightLevelText = 'dark';
+      else if (lightLevel === 1) lightLevelText = 'dim';
+      
+      console.log('TokenLightCondition | Final light level for token:', lightLevelText);
+      return lightLevelText;
+      
+    } catch (error) {
+      console.error('TokenLightCondition | Error in findTokenLightingOnly:', error);
+      return 'bright';
+    }
+  }
+
+  /**
+   * Check if token is within light angle
+   * @private
+   */
+  static _checkLightAngle(selectedToken, lightSource, source) {
+    const lightAngle = source.data.angle;
+    if (lightAngle >= 360) return true;
+    
+    let lightRotation = source.data.rotation;
+    let angle = this.getCalculatedLightAngle(selectedToken, lightSource);
+    if (angle < 0) angle += 360;
+    let adjustedAngle = Math.abs(angle - lightRotation);
+    if (adjustedAngle > 180) adjustedAngle = 360 - adjustedAngle;
+    return adjustedAngle <= lightAngle / 2;
+  }
 
   /**
    * Show light level box in token HUD for GM
-   * @param {Token} selectedToken - The selected token
-   * @param {TokenHUD} tokenHUD - The token HUD object
-   * @param {HTMLElement} html - The HUD HTML element
    */
   static async showLightLevelBox(selectedToken, tokenHUD, html) {
     if (!CoreUtils.isValidActor(selectedToken)) return;
     if (!this._hasValidHp(selectedToken)) return;
-    const lightCondition = await this.findTokenLighting(selectedToken);
+    const lightCondition = selectedToken.actor.getFlag(CONSTANTS.MODULE_ID, 'lightLevel') || 'bright';
     const iconClass = CONSTANTS.LIGHT_ICONS[lightCondition];
     this._createLightLevelIcon(html, iconClass, lightCondition);
   }
 
   /**
    * Show light level box in token HUD for players
-   * @param {Token} selectedToken - The selected token
-   * @param {TokenHUD} tokenHUD - The token HUD object
-   * @param {HTMLElement} html - The HUD HTML element
    */
   static async showLightLevelPlayerBox(selectedToken, tokenHUD, html) {
     if (!CoreUtils.isValidActor(selectedToken)) return;
@@ -39,9 +187,6 @@ export class LightingManager {
 
   /**
    * Create light level icon element for HUD
-   * @param {HTMLElement} html - The HUD HTML element
-   * @param {string} iconClass - The FontAwesome icon class
-   * @param {string} condition - The light condition for tooltip
    * @private
    */
   static _createLightLevelIcon(html, iconClass, condition) {
@@ -62,8 +207,6 @@ export class LightingManager {
 
   /**
    * Check if token has valid HP
-   * @param {Token} token - The token to check
-   * @returns {boolean} True if token has valid HP
    * @private
    */
   static _hasValidHp(token) {
@@ -72,188 +215,7 @@ export class LightingManager {
   }
 
   /**
-   * Check lighting for a single token
-   * @param {Token} placedToken - The token to check
-   */
-  static async checkTokenLighting(placedToken) {
-    if (!game.user.isGM) return;
-    if (!CoreUtils.isValidActor(placedToken)) return;
-    if (!CoreUtils.canProcessToken(placedToken.id)) return; // Add circuit breaker
-
-    console.log('TokenLightCondition | checkTokenLighting for token:', placedToken.id);
-
-    if (this._hasValidHp(placedToken)) {
-      await this.findTokenLighting(placedToken);
-    } else {
-      console.log('TokenLightCondition | Token has no valid HP, clearing effects');
-      await Effects.clearEffects(placedToken);
-    }
-  }
-
-  /**
-   * Check lighting for all tokens on the scene
-   * @returns {Promise<void[]>} Array of promises for all token checks
-   */
-  static async checkAllTokensLightingRefresh() {
-    const promises = canvas.tokens.placeables.map((token) => this.checkTokenLighting(token));
-    const results = await Promise.all(promises);
-    return results;
-  }
-
-  /**
-   * Determine the lighting condition for a token
-   * @param {Token} selectedToken - The token to analyze
-   * @returns {Promise<string>} The lighting condition ('bright', 'dim', or 'dark')
-   */
-static async findTokenLighting(selectedToken) {
-  // Check if we're already updating this token
-  if (selectedToken.actor?.getFlag(CONSTANTS.MODULE_ID, 'updating')) {
-    console.log('TokenLightCondition | Token is being updated, skipping lighting check');
-    const cached = selectedToken.actor.getFlag(CONSTANTS.MODULE_ID, 'lightLevel') || 'bright';
-    return cached;
-  }
-
-  if (this.processingTokens.has(selectedToken.id)) {
-    console.log('TokenLightCondition | Token already processing, returning cached result');
-    const cached = selectedToken.actor.getFlag(CONSTANTS.MODULE_ID, 'lightLevel') || 'bright';
-    return cached;
-  }
-  
-  this.processingTokens.add(selectedToken.id);
-  console.log('TokenLightCondition | Starting lighting analysis for token:', selectedToken.id);
-  
-  try {
-      let lightLevel = 0;
-      let globalIlluminationActive = false;
-      const globalConfig = game.settings.get(CONSTANTS.MODULE_ID, 'globalIllumination');
-      // Check global illumination first
-      if (globalConfig) {
-        const globalLight = canvas.scene.environment.globalLight.enabled;
-        const darkness = canvas.scene.environment.darknessLevel;
-        const globalLightThreshold = canvas.scene.environment.globalLight.darkness.max ?? 1;
-        if (globalLight && globalLightThreshold && darkness <= globalLightThreshold) {
-          // Global illumination is active - assume bright light everywhere
-          lightLevel = 2;
-          globalIlluminationActive = true;
-          console.log('TokenLightCondition | Global illumination active, setting to bright light');
-          // Check if token is under a light-restricting tile
-          if (this._isTokenUnderLightRestrictingTile(selectedToken)) {
-            console.log('TokenLightCondition | Token under light-restricting tile, overriding to dark');
-            lightLevel = 0; // Override to dark
-            globalIlluminationActive = false; // Allow individual lights to potentially override
-          }
-        }
-      }
-
-      // Only process individual light sources if:
-      // 1. Global illumination is not active, OR
-      // 2. We support negative lights (which can reduce light levels), OR
-      // 3. Token is under a light-restricting tile (global illumination was overridden)
-      const negativeLights = game.settings.get(CONSTANTS.MODULE_ID, 'negativelights');
-      if (!globalIlluminationActive || negativeLights) {
-        const lightSources = [...canvas.lighting.objects.children, ...canvas.tokens.placeables];
-        const sortedLights = lightSources.sort((a, b) => (b.document.light ?? b.document.config).luminosity - (a.document.light ?? a.document.config).luminosity);
-        for (let i = 0; i < sortedLights.length; i++) {
-          const lightSource = sortedLights[i];
-          const isToken = Boolean(lightSource.light);
-          let source = isToken ? lightSource.light : lightSource.lightSource;
-          if (source && source.active) {
-            let tokenDistance = CoreUtils.getCalculatedDistance(selectedToken, source);
-            let lightDimDis = source.data.dim;
-            let lightBrtDis = source.data.bright;
-            const negativeLight = negativeLights && source.data.luminosity < 0;
-            console.log(
-              'TokenLightCondition | findTokenLighting light analysis - distance:',
-              tokenDistance,
-              'dim:',
-              lightDimDis,
-              'bright:',
-              lightBrtDis,
-              'negative:',
-              negativeLight,
-              'luminosity:',
-              source.data.luminosity,
-              'globalActive:',
-              globalIlluminationActive
-            );
-
-            if (tokenDistance <= lightDimDis || tokenDistance <= lightBrtDis) {
-              let inLight = true;
-              const lightAngle = source.data.angle;
-              if (lightAngle < 360) {
-                let lightRotation = source.data.rotation;
-                let angle = this.getCalculatedLightAngle(selectedToken, lightSource);
-                if (angle < 0) angle += 360;
-                let adjustedAngle = Math.abs(angle - lightRotation);
-                if (adjustedAngle > 180) adjustedAngle = 360 - adjustedAngle;
-                if (adjustedAngle > lightAngle / 2) inLight = false;
-              }
-              if (inLight) {
-                let foundWall = CoreUtils.getWallCollision(selectedToken, lightSource);
-                if (!foundWall) {
-                  if (tokenDistance <= lightDimDis && lightDimDis > 0) {
-                    if (negativeLight && globalIlluminationActive && lightLevel > 1) {
-                      lightLevel = 1; // Negative light can reduce global illumination to dim
-                    } else if (negativeLight && lightLevel > 1) {
-                      lightLevel = 1; // Negative light reduces light level
-                    } else if (lightLevel < 1 && !negativeLight) {
-                      lightLevel = 1; // Normal light provides dim
-                    }
-                  }
-                  if (tokenDistance <= lightBrtDis && lightBrtDis > 0) {
-                    if (negativeLight && globalIlluminationActive && lightLevel > 0) {
-                      lightLevel = 0; // Negative light can reduce global illumination to dark
-                    } else if (negativeLight && lightLevel > 0) {
-                      lightLevel = 0; // Negative light reduces to dark
-                    } else if (lightLevel < 2 && !negativeLight && !globalIlluminationActive) {
-                      lightLevel = 2; // Normal light provides bright (but don't override global illumination)
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-      let lightLevelText = 'bright';
-      if (lightLevel === 0) lightLevelText = 'dark';
-      else if (lightLevel === 1) lightLevelText = 'dim';
-      else lightLevelText = 'bright';
-      console.log('TokenLightCondition | Final light level for token:', lightLevelText, 'lightLevel:', lightLevel, 'globalActive:', globalIlluminationActive);
-    const currentLightLevel = selectedToken.actor.getFlag(CONSTANTS.MODULE_ID, 'lightLevel');
-    if (currentLightLevel !== lightLevelText) {
-      console.log('TokenLightCondition | Light level changed from', currentLightLevel, 'to', lightLevelText);
-      await Effects.clearEffects(selectedToken);
-      if (lightLevel === 0) {
-        console.log('TokenLightCondition | Adding dark effect');
-        await Effects.addDark(selectedToken);
-      } else if (lightLevel === 1) {
-        console.log('TokenLightCondition | Adding dim effect');
-        await Effects.addDim(selectedToken);
-      }
-    }
-    
-    // Set the flag with our special option to prevent triggering updates
-    await selectedToken.actor.setFlag(CONSTANTS.MODULE_ID, 'lightLevel', lightLevelText, {
-      tokenlightcondition: true
-    });
-    
-    return lightLevelText;
-    
-  } catch (error) {
-    console.error('TokenLightCondition | Error in findTokenLighting:', error);
-    return 'bright';
-  } finally {
-    console.log('TokenLightCondition | Cleaning up processing token:', selectedToken.id);
-    this.processingTokens.delete(selectedToken.id);
-  }
-}
-
-  /**
    * Calculate the angle between token and light source
-   * @param {Token} selectedToken - The token
-   * @param {Object} placedLights - The light source
-   * @returns {number} The calculated angle in degrees
    */
   static getCalculatedLightAngle(selectedToken, placedLights) {
     const a1 = placedLights.center.x;
@@ -267,8 +229,6 @@ static async findTokenLighting(selectedToken) {
 
   /**
    * Check if a token is underneath a tile with light restrictions
-   * @param {Token} selectedToken - The token to check
-   * @returns {boolean} True if token is under a light-restricting tile
    * @private
    */
   static _isTokenUnderLightRestrictingTile(selectedToken) {
@@ -276,12 +236,13 @@ static async findTokenLighting(selectedToken) {
     const tokenElevation = selectedToken.document.elevation || 0;
     const lightRestrictingTiles = canvas.tiles.placeables.filter((tile) => tile.document?.restrictions?.light === true);
     if (lightRestrictingTiles.length === 0) return false;
+    
     for (const tile of lightRestrictingTiles) {
       const isTokenInTile = selectedToken.bounds.intersects(tile.bounds);
       if (isTokenInTile) {
         const tileElevation = tile.document.elevation || 0;
         if (tokenElevation < tileElevation) {
-          console.log('TokenLightCondition | Token under light-restricting tile:', 'Token elevation:', tokenElevation, 'Tile elevation:', tileElevation, 'Tile ID:', tile.id);
+          console.log('TokenLightCondition | Token under light-restricting tile');
           return true;
         }
       }
