@@ -33,7 +33,7 @@
       }
     ]
   },
-  "esmodules": ["./scripts/config.js", "./scripts/main.js"],
+  "esmodules": ["./scripts/settings.mjs", "./scripts/token-light-condition.mjs"],
   "styles": ["./styles/tokenlightcondition.css"],
   "languages": [
     {
