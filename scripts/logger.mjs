@@ -36,10 +36,7 @@ export function log(level, ...args) {
 
     // Create log entry for storage
     const logEntry = {
-      type:
-        level === 1 ? 'error'
-        : level === 2 ? 'warn'
-        : 'debug',
+      type: level === 1 ? 'error' : level === 2 ? 'warn' : 'debug',
       timestamp,
       level,
       content: args
