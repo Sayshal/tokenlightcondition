@@ -1,3 +1,7 @@
+# Commissioned Module Update
+
+This module was updated as part of a commission. Any further updates beyond new core compatibility is subject to a monetary contribution. Issues for new features will be assigned a value based on complexity.
+
 # Token Light Condition
 
 ![GitHub release](https://img.shields.io/github/v/release/Sayshal/tokenlightcondition?style=for-the-badge)
