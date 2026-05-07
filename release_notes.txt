@@ -1,8 +1,17 @@
+## Breaking Changes
+
+- Minimum Foundry compatibility raised to V13; verified through V14. V12 is no longer supported.
+
 ## Bug Fixes
 
-- Token lighting now updates on the same grid step when moving away from a light source. Previously, retreating one square out of dim or bright range left the old condition applied until you took another step, because the legacy `updateToken` hook was reading stale position data on the V13 movement system.
+- Removed the per-token 500ms cooldown gate that was silently dropping the second of two fast-back-to-back movement events; the existing per-frame queue still prevents thrash.
+- Token lighting now updates on the same grid step when moving away from a light source; previously, retreating one square out of dim or bright range left the old condition applied for one extra step because the legacy updateToken hook reported stale position data on the V13 movement system.
 
 ## Changes
 
-- Minimum Foundry compatibility raised to V13; verified through V14.
-- Removed the per-token 500ms cooldown gate. The existing per-frame queue already coalesces rapid updates, and the cooldown was silently dropping the second of any two fast-back-to-back movement events.
+- Logger now writes to console.debug instead of console.log, so debug output respects browser console verbosity filters and stops cluttering the default Info view.
+- Logger output now uses a colored module-ID prefix in the browser console for easier filtering.
+
+## Documentation
+
+- Added a Commissioned Module Update notice to the README explaining that updates beyond core compatibility are subject to monetary contribution and feature requests are valued by complexity.
