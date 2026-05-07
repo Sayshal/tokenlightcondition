@@ -14,9 +14,8 @@
   ],
   "version": "",
   "compatibility": {
-    "verified": "13",
-    "minimum": "12",
-    "maximum": "13.999"
+    "verified": "14",
+    "minimum": "13"
   },
   "relationships": {
     "systems": [
@@ -33,8 +32,13 @@
       }
     ]
   },
-  "esmodules": ["./scripts/settings.mjs", "./scripts/token-light-condition.mjs"],
-  "styles": ["./styles/tokenlightcondition.css"],
+  "esmodules": [
+    "./scripts/settings.mjs",
+    "./scripts/token-light-condition.mjs"
+  ],
+  "styles": [
+    "./styles/tokenlightcondition.css"
+  ],
   "languages": [
     {
       "lang": "en",
