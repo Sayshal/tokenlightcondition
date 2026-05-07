@@ -17,9 +17,7 @@ This module was updated as part of a commission. Any further updates beyond new 
 
 ## Introduction
 
-**Token Light Condition** revolutionizes lighting mechanics in FoundryVTT! Automatically detect and visualize your characters' lighting conditions with intelligent automation that handles everything from simple torch placement to complex magical darkness scenarios. Never again wonder whether your rogue has advantage on stealth or if your spell requires bright light—Token Light Condition tracks it all seamlessly.
-
-Say goodbye to manual lighting calculations and forgotten visibility rules. **Token Light Condition** handles the complexity so you can focus on the adventure!
+Token Light Condition automatically tracks each token's lighting condition (bright, dim, or dark) and applies a matching ActiveEffect. Works with ambient lights, token-emitted lights, walls, elevation, and global illumination.
 
 ---
 
@@ -81,14 +79,9 @@ Never lose track of your character's lighting situation:
 - **Real-Time Updates**: Lighting conditions update automatically as you move or lights change
 - **Clear Visual Feedback**: Distinct effects help you immediately understand tactical advantages
 
-### Seamless Integration
+### Background Operation
 
-Token Light Condition works behind the scenes:
-
-- **No Manual Tracking**: Lighting conditions update automatically with movement and environmental changes
-- **Rules-Accurate**: Proper implementation of visibility and lighting mechanics
-- **Effect Compatibility**: Integrates with your existing status effect systems
-- **Performance Optimized**: Smooth operation even in complex lighting scenarios
+The module runs in the background and updates lighting conditions when tokens move or scene lighting changes. Effects are applied through the standard ActiveEffect system, so any module that reads status effects sees them.
 
 ---
 

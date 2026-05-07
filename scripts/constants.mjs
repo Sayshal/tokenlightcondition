@@ -22,8 +22,6 @@ export const LIGHTING = {
 
 export const VALID_ACTOR_TYPES = ['character', 'npc'];
 
-export const DARKNESS_THRESHOLDS = { BRIGHT_MAX: 0.5, DIM_MAX: 0.75 };
-
 export const EFFECT_DATA = {
   /**
    * @param {string} effectType - 'dark' or 'dim'
