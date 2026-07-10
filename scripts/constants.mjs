@@ -1,6 +1,5 @@
 export const MODULE = {
   ID: 'tokenlightcondition',
-  LOG_LEVEL: 0,
   TITLE: 'Token Light Condition'
 };
 
@@ -9,7 +8,6 @@ export const SETTINGS = {
   DELAY_CALCULATIONS: 'delaycalculations',
   ENABLE: 'enable',
   GLOBAL_ILLUMINATION: 'globalIllumination',
-  LOGGING_LEVEL: 'loggingLevel',
   NEGATIVE_LIGHTS: 'negativelights',
   SHOW_TOKEN_HUD: 'showTokenHud'
 };

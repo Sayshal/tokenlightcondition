@@ -1,23 +1,22 @@
 import { EFFECT_DATA, MODULE, SETTINGS } from '../constants.mjs';
-import { log } from '../logger.mjs';
 
 /** Manages lighting effects for tokens across different game systems */
 export class EffectsManager {
   /** Initialize effects system based on the current game system */
   static async initializeEffects() {
-    log(3, 'Initializing effects system');
+    ATLAS.log(3, 'Initializing effects system');
     try {
       const addEffects = game.settings.get(MODULE.ID, SETTINGS.ADD_EFFECTS);
       if (!addEffects) {
-        log(3, 'Effect creation disabled in settings');
+        ATLAS.log(3, 'Effect creation disabled in settings');
         return;
       }
     } catch {
-      log(2, 'Settings not yet registered, skipping effect initialization');
+      ATLAS.log(2, 'Settings not yet registered, skipping effect initialization');
       return;
     }
     const gameSystemId = game.system.id;
-    log(3, `Initializing effects for system: ${gameSystemId}`);
+    ATLAS.log(3, `Initializing effects for system: ${gameSystemId}`);
     switch (gameSystemId) {
       case 'pf2e':
         await this._initializePF2eEffects();
@@ -26,7 +25,7 @@ export class EffectsManager {
         await this._initializeDnd5eEffects();
         break;
       default:
-        log(3, `Using generic effects for system: ${gameSystemId}`);
+        ATLAS.log(3, `Using generic effects for system: ${gameSystemId}`);
         break;
     }
   }
@@ -37,10 +36,10 @@ export class EffectsManager {
    */
   static async clearEffects(token) {
     if (!token?.actor) {
-      log(2, 'Cannot clear effects - invalid token or actor');
+      ATLAS.log(2, 'Cannot clear effects - invalid token or actor');
       return;
     }
-    log(3, `Clearing lighting effects for token: ${token.id}`);
+    ATLAS.log(3, `Clearing lighting effects for token: ${token.id}`);
     const gameSystemId = game.system.id;
     try {
       switch (gameSystemId) {
@@ -52,7 +51,7 @@ export class EffectsManager {
           break;
       }
     } catch (error) {
-      log(1, `Error clearing effects for token ${token.id}:`, error);
+      ATLAS.log(1, `Error clearing effects for token ${token.id}:`, error);
     }
   }
 
@@ -80,20 +79,20 @@ export class EffectsManager {
    */
   static async _addLightingEffect(token, effectType) {
     if (!token?.actor) {
-      log(2, `Cannot add ${effectType} effect - invalid token or actor`);
+      ATLAS.log(2, `Cannot add ${effectType} effect - invalid token or actor`);
       return;
     }
     let addEffects = true;
     try {
       addEffects = game.settings.get(MODULE.ID, SETTINGS.ADD_EFFECTS);
     } catch {
-      log(2, 'addEffects setting not available, defaulting to true');
+      ATLAS.log(2, 'addEffects setting not available, defaulting to true');
     }
     if (!addEffects) {
-      log(3, `Effect creation disabled, skipping ${effectType} effect`);
+      ATLAS.log(3, `Effect creation disabled, skipping ${effectType} effect`);
       return;
     }
-    log(3, `Adding ${effectType} effect to token: ${token.id}`);
+    ATLAS.log(3, `Adding ${effectType} effect to token: ${token.id}`);
     const gameSystemId = game.system.id;
     try {
       switch (gameSystemId) {
@@ -105,7 +104,7 @@ export class EffectsManager {
           break;
       }
     } catch (error) {
-      log(1, `Error adding ${effectType} effect to token ${token.id}:`, error);
+      ATLAS.log(1, `Error adding ${effectType} effect to token ${token.id}:`, error);
     }
   }
 
@@ -114,7 +113,7 @@ export class EffectsManager {
    * @private
    */
   static async _initializePF2eEffects() {
-    log(3, 'Initializing PF2e lighting effects');
+    ATLAS.log(3, 'Initializing PF2e lighting effects');
     const effectTypes = ['dim', 'dark'];
     const itemsToCreate = [];
     for (const effectType of effectTypes) {
@@ -123,14 +122,14 @@ export class EffectsManager {
       if (!existingItem) {
         const itemData = this._createPF2eEffectData(effectType);
         itemsToCreate.push(itemData);
-        log(3, `Queuing PF2e effect item creation: ${localizedName}`);
+        ATLAS.log(3, `Queuing PF2e effect item creation: ${localizedName}`);
       } else {
-        log(3, `PF2e effect item already exists: ${localizedName}`);
+        ATLAS.log(3, `PF2e effect item already exists: ${localizedName}`);
       }
     }
     if (itemsToCreate.length > 0) {
       await Item.createDocuments(itemsToCreate);
-      log(3, `Created ${itemsToCreate.length} PF2e effect items`);
+      ATLAS.log(3, `Created ${itemsToCreate.length} PF2e effect items`);
     }
   }
 
@@ -139,7 +138,7 @@ export class EffectsManager {
    * @private
    */
   static async _initializeDnd5eEffects() {
-    log(3, 'Initializing D&D 5e lighting effects');
+    ATLAS.log(3, 'Initializing D&D 5e lighting effects');
     if (game.modules.get('chris-premades')?.active) {
       const cprEnabled = game.settings.get('chris-premades', 'effectInterface');
       if (cprEnabled) await this._integrateCPREffects();
@@ -157,7 +156,7 @@ export class EffectsManager {
     if (itemsToRemove.length > 0) {
       const itemIds = itemsToRemove.map((item) => item.id);
       await token.actor.deleteEmbeddedDocuments('Item', itemIds);
-      log(3, `Cleared ${itemsToRemove.length} PF2e effects from token: ${token.id}`);
+      ATLAS.log(3, `Cleared ${itemsToRemove.length} PF2e effects from token: ${token.id}`);
     }
   }
 
@@ -171,7 +170,7 @@ export class EffectsManager {
     if (effectsToRemove.length > 0) {
       const effectIds = effectsToRemove.map((effect) => effect.id);
       await token.actor.deleteEmbeddedDocuments('ActiveEffect', effectIds);
-      log(3, `Cleared ${effectsToRemove.length} effects from token: ${token.id}`);
+      ATLAS.log(3, `Cleared ${effectsToRemove.length} effects from token: ${token.id}`);
     }
   }
 
@@ -186,9 +185,9 @@ export class EffectsManager {
     const effectItem = game.items.find((item) => item.name === effectName);
     if (effectItem) {
       await token.actor.createEmbeddedDocuments('Item', [effectItem.toObject()]);
-      log(3, `Added PF2e ${effectType} effect to token: ${token.id}`);
+      ATLAS.log(3, `Added PF2e ${effectType} effect to token: ${token.id}`);
     } else {
-      log(2, `PF2e effect item not found: ${effectName}`);
+      ATLAS.log(2, `PF2e effect item not found: ${effectName}`);
     }
   }
 
@@ -200,7 +199,7 @@ export class EffectsManager {
    * @private
    */
   static async _addGenericEffect(token, effectType) {
-    log(3, `Creating ${effectType} effect for token: ${token.id}`);
+    ATLAS.log(3, `Creating ${effectType} effect for token: ${token.id}`);
     try {
       if (game.modules.get('chris-premades')?.active) {
         const cprEnabled = game.settings.get('chris-premades', 'effectInterface');
@@ -210,21 +209,21 @@ export class EffectsManager {
             const effectData = cprEffect.toObject();
             effectData.statuses = [effectType];
             const effect = await ActiveEffect.create(effectData, { keepId: true, parent: token.actor });
-            log(3, `Created CPR ${effectType} effect: ${effect?.id}`);
+            ATLAS.log(3, `Created CPR ${effectType} effect: ${effect?.id}`);
             return effect;
           }
         }
       }
       const effectData = EFFECT_DATA.getEffectData(effectType);
       if (!effectData) {
-        log(1, `Invalid effect type: ${effectType}`);
+        ATLAS.log(1, `Invalid effect type: ${effectType}`);
         return;
       }
       const effect = await ActiveEffect.create(effectData, { keepId: true, parent: token.actor });
-      log(3, `Created ${effectType} effect: ${effect?.id}`);
+      ATLAS.log(3, `Created ${effectType} effect: ${effect?.id}`);
       return effect;
     } catch (error) {
-      log(1, `Error creating ${effectType} effect:`, error);
+      ATLAS.log(1, `Error creating ${effectType} effect:`, error);
       throw error;
     }
   }
@@ -270,7 +269,7 @@ export class EffectsManager {
   static _findCPREffect(effectType) {
     const cprItem = game.items.find((item) => item.flags['chris-premades']?.effectInterface);
     if (!cprItem) {
-      log(3, 'CPR Effect Interface item not found');
+      ATLAS.log(3, 'CPR Effect Interface item not found');
       return null;
     }
     const matchingEffect = cprItem.effects.find((effect) => effect.flags?.[MODULE.ID]?.type === effectType);
@@ -282,11 +281,11 @@ export class EffectsManager {
    * @private
    */
   static async _integrateCPREffects() {
-    log(3, "Integrating with Chris's Premades");
+    ATLAS.log(3, "Integrating with Chris's Premades");
     try {
       const cprItem = game.items.find((item) => item.flags['chris-premades']?.effectInterface);
       if (!cprItem) {
-        log(2, 'CPR Effect Interface not found, skipping integration');
+        ATLAS.log(2, 'CPR Effect Interface not found, skipping integration');
         return;
       }
       for (const effectType of ['dark', 'dim']) {
@@ -295,13 +294,13 @@ export class EffectsManager {
           const effectData = EFFECT_DATA.getEffectData(effectType);
           if (effectData) {
             await ActiveEffect.create(effectData, { keepId: true, parent: cprItem });
-            log(3, `Created CPR integration effect: ${effectType}`);
+            ATLAS.log(3, `Created CPR integration effect: ${effectType}`);
           }
         }
       }
-      log(3, 'CPR integration complete');
+      ATLAS.log(3, 'CPR integration complete');
     } catch (error) {
-      log(1, 'CPR integration failed:', error);
+      ATLAS.log(1, 'CPR integration failed:', error);
     }
   }
 }
