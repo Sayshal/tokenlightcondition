@@ -14,7 +14,7 @@
   ],
   "version": "",
   "compatibility": {
-    "verified": "14.363",
+    "verified": "14.364",
     "minimum": "14"
   },
   "relationships": {
@@ -23,7 +23,7 @@
         "id": "dnd5e",
         "type": "system",
         "compatibility": {
-          "verified": "5.1.2"
+          "verified": "14.364"
         }
       },
       {
