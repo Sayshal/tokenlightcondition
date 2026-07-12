@@ -1,10 +1,10 @@
 import { MODULE, SETTINGS } from './constants.mjs';
-import { initializeLogger, log } from './logger.mjs';
 import { EffectsManager } from './utils/effects.mjs';
 import { LightingCalculator } from './utils/lighting.mjs';
 
 Hooks.once('setup', () => {
-  log(3, 'Setting up Token Light Condition module');
+  ATLAS.register('tokenlightcondition', { title: MODULE.TITLE, github: 'Sayshal/tokenlightcondition' });
+  ATLAS.log(3, 'Setting up Token Light Condition module');
   game.settings.register(MODULE.ID, SETTINGS.ENABLE, {
     name: 'tokenlightcondition.enable',
     scope: 'world',
@@ -22,31 +22,11 @@ Hooks.once('setup', () => {
       }
     }
   });
-
-  game.settings.register(MODULE.ID, SETTINGS.LOGGING_LEVEL, {
-    name: 'TOKENLIGHTCONDITION.Settings.Logger.Name',
-    hint: 'TOKENLIGHTCONDITION.Settings.Logger.Hint',
-    scope: 'client',
-    config: true,
-    type: String,
-    choices: {
-      0: 'TOKENLIGHTCONDITION.Settings.Logger.Choices.Off',
-      1: 'TOKENLIGHTCONDITION.Settings.Logger.Choices.Errors',
-      2: 'TOKENLIGHTCONDITION.Settings.Logger.Choices.Warnings',
-      3: 'TOKENLIGHTCONDITION.Settings.Logger.Choices.Verbose'
-    },
-    default: 2,
-    onChange: (value) => {
-      MODULE.LOG_LEVEL = parseInt(value);
-      log(3, `Logging level changed to ${MODULE.LOG_LEVEL}`);
-    }
-  });
 });
 
 Hooks.once('ready', () => {
   const module = game.modules.get(MODULE.ID);
-  log(3, `Initializing Token Light Condition ${module.version}`);
-  initializeLogger();
+  ATLAS.log(3, `Initializing Token Light Condition ${module.version}`);
   registerAllSettings();
 });
 
@@ -55,7 +35,7 @@ Hooks.once('ready', () => {
  * @private
  */
 function registerAllSettings() {
-  log(3, 'Registering module settings');
+  ATLAS.log(3, 'Registering module settings');
   game.settings.register(MODULE.ID, SETTINGS.SHOW_TOKEN_HUD, {
     name: game.i18n.localize('TOKENLIGHTCONDITION.Settings.ShowTokenHud.Name'),
     hint: game.i18n.localize('TOKENLIGHTCONDITION.Settings.ShowTokenHud.Hint'),
@@ -110,5 +90,5 @@ function registerAllSettings() {
     default: false,
     type: Boolean
   });
-  log(3, 'All settings registered successfully');
+  ATLAS.log(3, 'All settings registered successfully');
 }

@@ -71,6 +71,7 @@ jobs:
             styles/ \
             LICENSE \
             module.json \
+            release_notes.txt \
             README.md \
             -x "*.lock" \
             -x "package*.json" \

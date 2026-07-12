@@ -1,5 +1,4 @@
 import { MODULE, SETTINGS, VALID_ACTOR_TYPES } from '../constants.mjs';
-import { log } from '../logger.mjs';
 import { EffectsManager } from './effects.mjs';
 import { LightingCalculator } from './lighting.mjs';
 
@@ -18,7 +17,7 @@ export class TokenHelpers {
    * @param {boolean} enabled - Whether to enable or disable the module
    */
   static async toggleModule(enabled) {
-    log(3, `Toggling module to: ${enabled}`);
+    ATLAS.log(3, `Toggling module to: ${enabled}`);
     try {
       await game.settings.set(MODULE.ID, SETTINGS.ENABLE, enabled);
       if (!game.user.isGM) return;
@@ -30,7 +29,7 @@ export class TokenHelpers {
         await Promise.all(clearPromises);
       }
     } catch (error) {
-      log(1, 'Error toggling module:', error);
+      ATLAS.log(1, 'Error toggling module:', error);
     }
   }
 
@@ -40,12 +39,12 @@ export class TokenHelpers {
    */
   static async initializeToken(token) {
     if (!game.user.isGM || !token?.actor) return;
-    log(3, `Initializing token: ${token.id}`);
+    ATLAS.log(3, `Initializing token: ${token.id}`);
     try {
       await token.actor.setFlag(MODULE.ID, 'initialized', true);
       LightingCalculator.calculateTokenLighting(token);
     } catch (error) {
-      log(1, `Error initializing token ${token.id}:`, error);
+      ATLAS.log(1, `Error initializing token ${token.id}:`, error);
     }
   }
 
@@ -142,10 +141,10 @@ export class TokenHelpers {
     try {
       const testResult = CONFIG.Canvas.polygonBackends.sight.testCollision(sourceToken.center, targetObject.center, { type: 'sight', mode: 'all' });
       const hasCollision = testResult.length > 0;
-      if (hasCollision) log(3, `Wall collision detected between token ${sourceToken.id} and target`);
+      if (hasCollision) ATLAS.log(3, `Wall collision detected between token ${sourceToken.id} and target`);
       return hasCollision;
     } catch (error) {
-      log(1, 'Error testing wall collision:', error);
+      ATLAS.log(1, 'Error testing wall collision:', error);
       return false;
     }
   }
@@ -184,7 +183,7 @@ export class TokenHelpers {
       case 'f':
         return this._isTokenInPolygon(tokenPosition, points, x, y);
       default:
-        log(2, `Unknown drawing shape type: ${type}`);
+        ATLAS.log(2, `Unknown drawing shape type: ${type}`);
         return true;
     }
   }

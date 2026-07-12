@@ -1,5 +1,4 @@
 import { LIGHTING, MODULE, SETTINGS } from '../constants.mjs';
-import { log } from '../logger.mjs';
 import { TokenHelpers } from './helpers.mjs';
 
 /** Core lighting calculation engine for determining token light conditions */
@@ -12,34 +11,34 @@ export class LightingCalculator {
   static async calculateTokenLighting(token, position = null) {
     if (!game.user.isGM) return;
     if (!TokenHelpers.isValidToken(token)) return;
-    log(3, `Calculating lighting for token: ${token.id}`);
+    ATLAS.log(3, `Calculating lighting for token: ${token.id}`);
     const pos = position ?? { x: token.center.x, y: token.center.y, elevation: token.document.elevation };
     try {
       if (TokenHelpers.hasValidHitPoints(token)) {
         const lightLevel = await this.determineLightLevel(token, pos);
         const currentLightLevel = token.actor.getFlag(MODULE.ID, 'lightLevel');
         if (currentLightLevel !== lightLevel) {
-          log(3, `Light level changed from ${currentLightLevel} to ${lightLevel} for token ${token.id}`);
+          ATLAS.log(3, `Light level changed from ${currentLightLevel} to ${lightLevel} for token ${token.id}`);
           const { effectQueue } = await import('../token-light-condition.mjs');
           effectQueue.add(token.id, lightLevel);
         }
       } else {
-        log(3, `Token ${token.id} has no valid HP, clearing effects`);
+        ATLAS.log(3, `Token ${token.id} has no valid HP, clearing effects`);
         const { effectQueue } = await import('../token-light-condition.mjs');
         effectQueue.add(token.id, 'clear');
       }
     } catch (error) {
-      log(1, `Error calculating lighting for token ${token.id}:`, error);
+      ATLAS.log(1, `Error calculating lighting for token ${token.id}:`, error);
     }
   }
 
   /** Refresh lighting calculations for all valid tokens on the scene */
   static async refreshAllTokenLighting() {
-    log(3, 'Refreshing lighting for all tokens');
+    ATLAS.log(3, 'Refreshing lighting for all tokens');
     const validTokens = canvas.tokens.placeables.filter((token) => TokenHelpers.isValidToken(token));
     const promises = validTokens.map((token) => this.calculateTokenLighting(token));
     await Promise.all(promises);
-    log(3, `Processed ${validTokens.length} tokens for lighting updates`);
+    ATLAS.log(3, `Processed ${validTokens.length} tokens for lighting updates`);
   }
 
   /**
@@ -49,7 +48,7 @@ export class LightingCalculator {
    * @returns {Promise<string>} The lighting condition ('bright', 'dim', or 'dark')
    */
   static async determineLightLevel(token, position) {
-    log(3, `Analyzing lighting conditions for token: ${token.id}`);
+    ATLAS.log(3, `Analyzing lighting conditions for token: ${token.id}`);
     try {
       let lightLevel = LIGHTING.LEVELS.DARK;
       let globalIlluminationActive = false;
@@ -58,16 +57,16 @@ export class LightingCalculator {
         globalIlluminationActive = this._checkGlobalIllumination(token);
         if (globalIlluminationActive) {
           lightLevel = LIGHTING.LEVELS.BRIGHT;
-          log(3, 'Global illumination provides bright light');
+          ATLAS.log(3, 'Global illumination provides bright light');
         }
       }
       const shouldCheckIndividualLights = !globalIlluminationActive || game.settings.get(MODULE.ID, SETTINGS.NEGATIVE_LIGHTS);
       if (shouldCheckIndividualLights) lightLevel = await this._processLightSources(token, lightLevel, globalIlluminationActive, position);
       const lightLevelText = this._convertLightLevelToText(lightLevel);
-      log(3, `Final light level for token ${token.id}: ${lightLevelText}`);
+      ATLAS.log(3, `Final light level for token ${token.id}: ${lightLevelText}`);
       return lightLevelText;
     } catch (error) {
-      log(1, `Error determining light level for token ${token.id}:`, error);
+      ATLAS.log(1, `Error determining light level for token ${token.id}:`, error);
       return 'bright';
     }
   }
@@ -128,7 +127,7 @@ export class LightingCalculator {
     const globalLightThreshold = canvas.scene.environment.globalLight.darkness.max ?? 1;
     if (globalLight && globalLightThreshold && darkness <= globalLightThreshold) {
       if (this._isTokenUnderLightRestrictingTile(token)) {
-        log(3, `Token ${token.id} under light-restricting tile, global illumination blocked`);
+        ATLAS.log(3, `Token ${token.id} under light-restricting tile, global illumination blocked`);
         return false;
       }
       return true;
@@ -177,7 +176,7 @@ export class LightingCalculator {
     const dimRadius = source.data.dim;
     const brightRadius = source.data.bright;
     const isNegativeLight = supportNegativeLights && source.data.luminosity < 0;
-    log(3, `Light analysis - distance: ${tokenDistance}, dim: ${dimRadius}, bright: ${brightRadius}, negative: ${isNegativeLight}`);
+    ATLAS.log(3, `Light analysis - distance: ${tokenDistance}, dim: ${dimRadius}, bright: ${brightRadius}, negative: ${isNegativeLight}`);
     if (tokenDistance > Math.max(dimRadius, brightRadius)) return currentLightLevel;
     if (!this._isTokenInLightAngle(token, lightSource, source)) return currentLightLevel;
     if (TokenHelpers.hasWallCollision(token, lightSource)) return currentLightLevel;
@@ -209,7 +208,7 @@ export class LightingCalculator {
     let angleDifference = Math.abs(tokenAngle - lightRotation);
     if (angleDifference > 180) angleDifference = 360 - angleDifference;
     const isWithinCone = angleDifference <= lightAngle / 2;
-    if (!isWithinCone) log(3, `Token outside light cone - angle difference: ${angleDifference}, cone half-angle: ${lightAngle / 2}`);
+    if (!isWithinCone) ATLAS.log(3, `Token outside light cone - angle difference: ${angleDifference}, cone half-angle: ${lightAngle / 2}`);
     return isWithinCone;
   }
 
@@ -229,7 +228,7 @@ export class LightingCalculator {
       if (isTokenInTile) {
         const tileElevation = tile.document.elevation || 0;
         if (tokenElevation < tileElevation) {
-          log(3, `Token ${token.id} blocked by light-restricting tile at elevation ${tileElevation}`);
+          ATLAS.log(3, `Token ${token.id} blocked by light-restricting tile at elevation ${tileElevation}`);
           return true;
         }
       }
@@ -252,7 +251,7 @@ export class LightingCalculator {
       case LIGHTING.LEVELS.BRIGHT:
         return 'bright';
       default:
-        log(2, `Unknown light level: ${lightLevel}, defaulting to bright`);
+        ATLAS.log(2, `Unknown light level: ${lightLevel}, defaulting to bright`);
         return 'bright';
     }
   }
@@ -278,6 +277,6 @@ export class LightingCalculator {
     lightButton.appendChild(icon);
     const rightPanel = html.querySelector('.right');
     if (rightPanel) rightPanel.appendChild(lightButton);
-    else log(2, 'Could not find right panel in token HUD for lighting indicator');
+    else ATLAS.log(2, 'Could not find right panel in token HUD for lighting indicator');
   }
 }

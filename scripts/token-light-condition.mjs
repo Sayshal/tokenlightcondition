@@ -1,5 +1,4 @@
 import { MODULE, SETTINGS } from './constants.mjs';
-import { initializeLogger, log } from './logger.mjs';
 import { EffectsManager } from './utils/effects.mjs';
 import { TokenHelpers } from './utils/helpers.mjs';
 import { LightingCalculator } from './utils/lighting.mjs';
@@ -23,7 +22,7 @@ export const effectQueue = {
    */
   add(tokenId, lightLevel) {
     this.pendingOperations.set(tokenId, { lightLevel, timestamp: Date.now() });
-    log(3, `Queued operation for token ${tokenId}: ${lightLevel}`);
+    ATLAS.log(3, `Queued operation for token ${tokenId}: ${lightLevel}`);
     this.scheduleProcessing();
   },
 
@@ -39,7 +38,7 @@ export const effectQueue = {
   async processQueue() {
     if (this.processingActive || this.pendingOperations.size === 0) return;
     this.processingActive = true;
-    log(3, `Processing ${this.pendingOperations.size} queued operations`);
+    ATLAS.log(3, `Processing ${this.pendingOperations.size} queued operations`);
     try {
       const operations = new Map(this.pendingOperations);
       this.pendingOperations.clear();
@@ -47,14 +46,14 @@ export const effectQueue = {
       const validOperations = new Map();
       for (const [tokenId, operation] of operations) {
         if (now - operation.timestamp < this.MAX_OPERATION_AGE) validOperations.set(tokenId, operation);
-        else log(2, `Discarding stale operation for token ${tokenId}`);
+        else ATLAS.log(2, `Discarding stale operation for token ${tokenId}`);
       }
       for (const [tokenId, { lightLevel }] of validOperations) {
         const token = canvas.tokens.get(tokenId);
         if (token && TokenHelpers.isValidToken(token)) await this.processTokenEffects(token, lightLevel);
       }
     } catch (error) {
-      log(1, 'Error processing effect queue:', error);
+      ATLAS.log(1, 'Error processing effect queue:', error);
     } finally {
       this.processingActive = false;
       if (this.pendingOperations.size > 0) this.scheduleProcessing();
@@ -68,30 +67,29 @@ export const effectQueue = {
    */
   async processTokenEffects(token, lightLevel) {
     try {
-      log(3, `Processing effects for token ${token.id}: ${lightLevel}`);
+      ATLAS.log(3, `Processing effects for token ${token.id}: ${lightLevel}`);
       await EffectsManager.clearEffects(token);
       if (lightLevel === 'dark') await EffectsManager.addDarkEffect(token);
       else if (lightLevel === 'dim') await EffectsManager.addDimEffect(token);
       if (lightLevel !== 'clear') await token.actor.setFlag(MODULE.ID, 'lightLevel', lightLevel);
       else await token.actor.unsetFlag(MODULE.ID, 'lightLevel');
-      log(3, `Completed effects processing for token ${token.id}`);
+      ATLAS.log(3, `Completed effects processing for token ${token.id}`);
     } catch (error) {
-      log(1, `Error processing effects for token ${token.id}:`, error);
+      ATLAS.log(1, `Error processing effects for token ${token.id}:`, error);
     }
   }
 };
 
 Hooks.once('ready', async () => {
   const moduleData = game.modules.get(MODULE.ID);
-  log(3, `Token Light Condition Ready - Version ${moduleData.version}`);
-  initializeLogger();
+  ATLAS.log(3, `Token Light Condition Ready - Version ${moduleData.version}`);
   moduleInitialized = true;
   await EffectsManager.initializeEffects();
   setTimeout(async () => {
     await initializeIntegrations();
   }, 100);
   ui.effects?.render(true);
-  log(3, 'Token Light Condition initialization complete');
+  ATLAS.log(3, 'Token Light Condition initialization complete');
 });
 
 Hooks.on('getSceneControlButtons', (controls) => {
@@ -100,14 +98,14 @@ Hooks.on('getSceneControlButtons', (controls) => {
 
 Hooks.on('createToken', async (tokenDocument) => {
   if (!game.user.isGM || !TokenHelpers.isModuleEnabled()) return;
-  log(3, `Token created: ${tokenDocument.id}`);
+  ATLAS.log(3, `Token created: ${tokenDocument.id}`);
   const token = tokenDocument.object;
   if (token && TokenHelpers.isValidToken(token)) setTimeout(() => LightingCalculator.calculateTokenLighting(token), 150);
 });
 
 Hooks.on('updateToken', (tokenDocument, changes) => {
   if (!game.user.isGM || !TokenHelpers.isModuleEnabled()) return;
-  log(3, `Token updated: ${tokenDocument.id}`, { changes: Object.keys(changes) });
+  ATLAS.log(3, `Token updated: ${tokenDocument.id}`, { changes: Object.keys(changes) });
   const hasHiddenChange = 'hidden' in changes;
   const lightKeys = ['light.bright', 'light.dim', 'light.luminosity', 'light.angle', 'light.rotation'];
   const hasLightChange = lightKeys.some((key) => foundry.utils.hasProperty(changes, key));
@@ -115,7 +113,7 @@ Hooks.on('updateToken', (tokenDocument, changes) => {
     const token = tokenDocument.object;
     if (token && TokenHelpers.isValidToken(token)) debounceTokenCalculation(token);
   } else if (hasLightChange) {
-    log(3, 'Light properties changed, updating all tokens');
+    ATLAS.log(3, 'Light properties changed, updating all tokens');
     debounceAllTokensCalculation();
   }
 });
@@ -132,19 +130,19 @@ Hooks.on('moveToken', (tokenDocument, movement) => {
 
 Hooks.on('updateAmbientLight', () => {
   if (!game.user.isGM || !TokenHelpers.isModuleEnabled()) return;
-  log(3, 'Ambient light updated, refreshing all token lighting');
+  ATLAS.log(3, 'Ambient light updated, refreshing all token lighting');
   debounceAllTokensCalculation();
 });
 
 Hooks.on('createAmbientLight', () => {
   if (!game.user.isGM || !TokenHelpers.isModuleEnabled()) return;
-  log(3, 'Ambient light created, refreshing all token lighting');
+  ATLAS.log(3, 'Ambient light created, refreshing all token lighting');
   debounceAllTokensCalculation();
 });
 
 Hooks.on('deleteAmbientLight', () => {
   if (!game.user.isGM || !TokenHelpers.isModuleEnabled()) return;
-  log(3, 'Ambient light deleted, refreshing all token lighting');
+  ATLAS.log(3, 'Ambient light deleted, refreshing all token lighting');
   debounceAllTokensCalculation();
 });
 
@@ -154,7 +152,7 @@ Hooks.on('updateScene', (sceneDocument, changes) => {
   const lightingKeys = ['environment.darknessLevel', 'environment.globalLight'];
   const hasLightingChange = lightingKeys.some((key) => foundry.utils.hasProperty(changes, key));
   if (hasLightingChange) {
-    log(3, 'Scene lighting changed, refreshing all token lighting');
+    ATLAS.log(3, 'Scene lighting changed, refreshing all token lighting');
     debounceAllTokensCalculation();
   }
 });
@@ -202,13 +200,13 @@ async function calculateAllTokensLighting() {
 
 /** Initialize third-party integrations */
 async function initializeIntegrations() {
-  log(3, 'Initializing third-party integrations');
+  ATLAS.log(3, 'Initializing third-party integrations');
   if (game.modules.get('chris-premades')?.active) {
     try {
       const effectInterface = game.settings.get('chris-premades', 'effectInterface');
       if (effectInterface === true) await integrateCPREffects();
     } catch {
-      log(2, "Chris's Premades integration not available");
+      ATLAS.log(2, "Chris's Premades integration not available");
     }
   }
 }
@@ -216,10 +214,10 @@ async function initializeIntegrations() {
 /** Integrate with Chris's Premades Effect Interface */
 async function integrateCPREffects() {
   try {
-    log(3, "Setting up Chris's Premades integration");
+    ATLAS.log(3, "Setting up Chris's Premades integration");
     const cprItem = game.items.find((item) => item.flags['chris-premades']?.effectInterface);
     if (!cprItem) {
-      log(2, 'CPR Effect Interface item not found');
+      ATLAS.log(2, 'CPR Effect Interface item not found');
       return;
     }
     for (const effectType of ['dark', 'dim']) {
@@ -229,13 +227,13 @@ async function integrateCPREffects() {
         const effectData = EFFECT_DATA.getEffectData(effectType);
         if (effectData) {
           await ActiveEffect.create(effectData, { keepId: true, parent: cprItem });
-          log(3, `Created CPR effect: ${effectType}`);
+          ATLAS.log(3, `Created CPR effect: ${effectType}`);
         }
       }
     }
-    log(3, 'CPR integration completed successfully');
+    ATLAS.log(3, 'CPR integration completed successfully');
   } catch (error) {
-    log(1, 'CPR integration failed:', error);
+    ATLAS.log(1, 'CPR integration failed:', error);
   }
 }
 
@@ -250,7 +248,7 @@ export class TokenLightConditionModule {
     try {
       const lightingControl = controls.lighting;
       if (!lightingControl?.tools) {
-        log(2, 'Lighting controls not found, cannot add module button');
+        ATLAS.log(2, 'Lighting controls not found, cannot add module button');
         return;
       }
       lightingControl.tools['tokenlightcontrol-enable'] = {
@@ -262,9 +260,9 @@ export class TokenLightConditionModule {
         active: game.settings.get(MODULE.ID, SETTINGS.ENABLE),
         onChange: (_event, active) => TokenHelpers.toggleModule(active)
       };
-      log(3, 'Scene control button added successfully');
+      ATLAS.log(3, 'Scene control button added successfully');
     } catch (error) {
-      log(1, 'Error adding scene control button:', error);
+      ATLAS.log(1, 'Error adding scene control button:', error);
     }
   }
 
@@ -286,8 +284,7 @@ export class TokenLightConditionModule {
       initialized: moduleInitialized,
       enabled: TokenHelpers.isModuleEnabled(),
       queueSize: effectQueue.pendingOperations.size,
-      processingActive: effectQueue.processingActive,
-      logLevel: MODULE.LOG_LEVEL
+      processingActive: effectQueue.processingActive
     };
   }
 }
