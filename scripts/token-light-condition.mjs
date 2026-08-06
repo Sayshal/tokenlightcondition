@@ -48,10 +48,15 @@ export const effectQueue = {
         if (now - operation.timestamp < this.MAX_OPERATION_AGE) validOperations.set(tokenId, operation);
         else ATLAS.log(2, `Discarding stale operation for token ${tokenId}`);
       }
+      const changes = [];
       for (const [tokenId, { lightLevel }] of validOperations) {
         const token = canvas.tokens.get(tokenId);
-        if (token && TokenHelpers.isValidToken(token)) await this.processTokenEffects(token, lightLevel);
+        if (!token || !TokenHelpers.isValidToken(token)) continue;
+        const oldLevel = token.actor?.getFlag(MODULE.ID, 'lightLevel') ?? null;
+        const processed = await this.processTokenEffects(token, lightLevel);
+        if (processed) changes.push({ token, newLevel: lightLevel === 'clear' ? null : lightLevel, oldLevel });
       }
+      for (const { token, newLevel, oldLevel } of changes) Hooks.callAll(`${MODULE.ID}.lightLevelChanged`, token, newLevel, oldLevel);
     } catch (error) {
       ATLAS.log(1, 'Error processing effect queue:', error);
     } finally {
@@ -64,6 +69,7 @@ export const effectQueue = {
    * Process effects for a single token without triggering hooks
    * @param {object} token - The token to process
    * @param {string} lightLevel - The light level ('bright', 'dim', 'dark', or 'clear')
+   * @returns {Promise<boolean>} True when the effects and flag were committed
    */
   async processTokenEffects(token, lightLevel) {
     try {
@@ -74,8 +80,10 @@ export const effectQueue = {
       if (lightLevel !== 'clear') await token.actor.setFlag(MODULE.ID, 'lightLevel', lightLevel);
       else await token.actor.unsetFlag(MODULE.ID, 'lightLevel');
       ATLAS.log(3, `Completed effects processing for token ${token.id}`);
+      return true;
     } catch (error) {
       ATLAS.log(1, `Error processing effects for token ${token.id}:`, error);
+      return false;
     }
   }
 };
@@ -84,6 +92,12 @@ Hooks.once('ready', async () => {
   const moduleData = game.modules.get(MODULE.ID);
   ATLAS.log(3, `Token Light Condition Ready - Version ${moduleData.version}`);
   moduleInitialized = true;
+  moduleData.api = {
+    determineLightLevel: (token, position) => LightingCalculator.determineLightLevel(token, position),
+    getLightLevel,
+    refreshAllTokenLighting: calculateAllTokensLighting
+  };
+  globalThis.TLC = { api: moduleData.api };
   await EffectsManager.initializeEffects();
   setTimeout(async () => {
     await initializeIntegrations();
@@ -176,6 +190,15 @@ function debounceTokenCalculation(token, position = null) {
   if (token._lightingTimeout) clearTimeout(token._lightingTimeout);
   if (delay > 0) token._lightingTimeout = setTimeout(() => LightingCalculator.calculateTokenLighting(token, position), delay);
   else LightingCalculator.calculateTokenLighting(token, position);
+}
+
+/**
+ * Read the light level currently stored on a token's actor
+ * @param {object} token - The token to read
+ * @returns {string|null} 'bright', 'dim', 'dark', or null when unset (never calculated, or cleared)
+ */
+function getLightLevel(token) {
+  return token.actor?.getFlag(MODULE.ID, 'lightLevel') ?? null;
 }
 
 /** Debounced function for all tokens lighting calculation */

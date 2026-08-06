@@ -44,11 +44,12 @@ export class LightingCalculator {
   /**
    * Determine the lighting level for a specific token
    * @param {object} token - The token to analyze
-   * @param {{x: number, y: number, elevation: number}} position - Resolved token center + elevation
+   * @param {{x: number, y: number, elevation: number}|null} [position] - Resolved token center + elevation; falls back to the token's own center when omitted
    * @returns {Promise<string>} The lighting condition ('bright', 'dim', or 'dark')
    */
-  static async determineLightLevel(token, position) {
+  static async determineLightLevel(token, position = null) {
     ATLAS.log(3, `Analyzing lighting conditions for token: ${token.id}`);
+    const pos = position ?? { x: token.center.x, y: token.center.y, elevation: token.document.elevation };
     try {
       let lightLevel = LIGHTING.LEVELS.DARK;
       let globalIlluminationActive = false;
@@ -61,7 +62,7 @@ export class LightingCalculator {
         }
       }
       const shouldCheckIndividualLights = !globalIlluminationActive || game.settings.get(MODULE.ID, SETTINGS.NEGATIVE_LIGHTS);
-      if (shouldCheckIndividualLights) lightLevel = await this._processLightSources(token, lightLevel, globalIlluminationActive, position);
+      if (shouldCheckIndividualLights) lightLevel = await this._processLightSources(token, lightLevel, globalIlluminationActive, pos);
       const lightLevelText = this._convertLightLevelToText(lightLevel);
       ATLAS.log(3, `Final light level for token ${token.id}: ${lightLevelText}`);
       return lightLevelText;
