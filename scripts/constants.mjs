@@ -12,7 +12,6 @@ export const SETTINGS = {
 
 export const LIGHTING = {
   LEVELS: { DARK: 0, DIM: 1, BRIGHT: 2 },
-  LABELS: { dark: 'DRK', dim: 'DIM', bright: 'BRT' },
   ICONS: { dark: 'far fa-moon', dim: 'fas fa-moon', bright: 'fas fa-sun' }
 };
 

@@ -18,10 +18,11 @@ import { TokenHelpers } from './helpers.mjs';
 export class LightingCalculator {
   /**
    * Resolve the level a token should currently carry
-   * @param {object} token - The token to analyze
-   * @param {{x: number, y: number, elevation: number}|null} [position] - Resolved center + elevation; falls back to token.center when null
+   * @param {object} token - The Token placeable or TokenDocument to analyze
+   * @param {{x: number, y: number, elevation: number}|null} [position] - Resolved center + elevation; falls back to the token's own center when null
    * @param {object[]|null} [sources] - Pre-gathered source list; gathered on demand when null
    * @returns {Promise<string|null>} 'bright', 'dim', 'dark', or null when the token should carry no level at all
+   * @throws {Error} When the calculation itself fails; the caller leaves the stored level untouched
    */
   static async resolveLightLevel(token, position = null, sources = null) {
     if (!TokenHelpers.hasValidHitPoints(token)) return null;
@@ -30,24 +31,25 @@ export class LightingCalculator {
 
   /**
    * Calculate lighting condition for a single token and queue it when the level has moved
-   * @param {object} token - The token to analyze
-   * @param {{x: number, y: number, elevation: number}|null} [position] - Resolved center + elevation; falls back to token.center when null
+   * @param {object} token - The Token placeable or TokenDocument to analyze
+   * @param {{x: number, y: number, elevation: number}|null} [position] - Resolved center + elevation; falls back to the token's own center when null
    * @param {object[]|null} [sources] - Pre-gathered source list; gathered on demand when null
    */
   static async calculateTokenLighting(token, position = null, sources = null) {
-    if (!game.user.isGM) return;
+    if (!game.users.activeGM?.isSelf) return;
     if (!TokenHelpers.isValidToken(token)) return;
-    ATLAS.log(3, `Calculating lighting for token: ${token.id}`);
+    const tokenDocument = token.document ?? token;
+    ATLAS.log(3, `Calculating lighting for token: ${tokenDocument.id}`);
     try {
       const lightLevel = await this.resolveLightLevel(token, position, sources);
-      const currentLightLevel = token.document.getFlag(MODULE.ID, 'lightLevel') ?? null;
-      if (currentLightLevel === lightLevel) effectQueue.pendingOperations.delete(token.id);
+      const currentLightLevel = tokenDocument.getFlag(MODULE.ID, 'lightLevel') ?? null;
+      if (currentLightLevel === lightLevel) effectQueue.pendingOperations.delete(tokenDocument.id);
       else {
-        ATLAS.log(3, `Light level changed from ${currentLightLevel} to ${lightLevel} for token ${token.id}`);
-        effectQueue.add(token.id);
+        ATLAS.log(3, `Light level changed from ${currentLightLevel} to ${lightLevel} for token ${tokenDocument.id}`);
+        effectQueue.add(tokenDocument.id);
       }
     } catch (error) {
-      ATLAS.log(1, `Error calculating lighting for token ${token.id}:`, error);
+      ATLAS.log(1, `Error calculating lighting for token ${tokenDocument.id}:`, error);
     }
   }
 
@@ -63,53 +65,34 @@ export class LightingCalculator {
 
   /**
    * Determine the lighting level for a specific token
-   * @param {object} token - The token to analyze
+   * @param {object} token - The Token placeable or TokenDocument to analyze
    * @param {{x: number, y: number, elevation: number}|null} [position] - Resolved token center + elevation; falls back to the token's own center when omitted
    * @param {object[]|null} [sources] - Pre-gathered source list; gathered on demand when null
    * @returns {Promise<string>} The lighting condition ('bright', 'dim', or 'dark')
+   * @throws {Error} When the calculation fails; no level is fabricated for the caller to commit
    */
   static async determineLightLevel(token, position = null, sources = null) {
-    ATLAS.log(3, `Analyzing lighting conditions for token: ${token.id}`);
-    const pos = position ?? { x: token.center.x, y: token.center.y, elevation: token.document.elevation };
-    try {
-      const baseLevel = this._globalIlluminationLevel(pos) ?? LIGHTING.LEVELS.DARK;
-      const lightLevel = this._processLightSources(sources ?? this.gatherLightSources(), pos, baseLevel);
-      const lightLevelText = this._convertLightLevelToText(lightLevel);
-      ATLAS.log(3, `Final light level for token ${token.id}: ${lightLevelText}`);
-      return lightLevelText;
-    } catch (error) {
-      ATLAS.log(1, `Error determining light level for token ${token.id}:`, error);
-      return 'bright';
-    }
+    const tokenDocument = token.document ?? token;
+    ATLAS.log(3, `Analyzing lighting conditions for token: ${tokenDocument.id}`);
+    const pos = position ?? tokenDocument.getCenterPoint();
+    const baseLevel = this._globalIlluminationLevel(pos) ?? LIGHTING.LEVELS.DARK;
+    const lightLevel = this._processLightSources(sources ?? this.gatherLightSources(), pos, baseLevel);
+    const lightLevelText = this._convertLightLevelToText(lightLevel);
+    ATLAS.log(3, `Final light level for token ${tokenDocument.id}: ${lightLevelText}`);
+    return lightLevelText;
   }
 
   /**
-   * Display lighting information in the token HUD for GMs
-   * @param {object} token - The selected token
-   * @param {object} _tokenHUD - The token HUD instance (unused)
+   * Display the stored lighting level in the token HUD
+   * @param {object} token - The Token placeable whose HUD is open
    * @param {HTMLElement} html - The HUD HTML element
    */
-  static async showGMLightingHUD(token, _tokenHUD, html) {
+  static showLightingHUD(token, html) {
     if (!TokenHelpers.isValidToken(token)) return;
     if (!TokenHelpers.hasValidHitPoints(token)) return;
-    const lightCondition = token.document.getFlag(MODULE.ID, 'lightLevel') || 'bright';
-    const iconClass = LIGHTING.ICONS[lightCondition];
-    this._createLightingIndicator(html, iconClass, lightCondition);
-  }
-
-  /**
-   * Display lighting information in the token HUD for players
-   * @param {object} token - The selected token
-   * @param {object} _tokenHUD - The token HUD instance (unused)
-   * @param {HTMLElement} html - The HUD HTML element
-   */
-  static async showPlayerLightingHUD(token, _tokenHUD, html) {
-    if (!TokenHelpers.isValidToken(token)) return;
-    if (!TokenHelpers.hasValidHitPoints(token)) return;
-    const storedLightLevel = token.document.getFlag(MODULE.ID, 'lightLevel');
-    const lightCondition = storedLightLevel || 'bright';
-    const iconClass = LIGHTING.ICONS[lightCondition];
-    this._createLightingIndicator(html, iconClass, lightCondition);
+    const lightCondition = token.document.getFlag(MODULE.ID, 'lightLevel');
+    if (!lightCondition) return;
+    this._createLightingIndicator(html, LIGHTING.ICONS[lightCondition], lightCondition);
   }
 
   /**
@@ -265,14 +248,13 @@ export class LightingCalculator {
    * @private
    */
   static _createLightingIndicator(html, iconClass, condition) {
-    const existingIcon = html.querySelector('#light-level-indicator-icon');
-    if (existingIcon) existingIcon.remove();
+    html.querySelector('#light-level-indicator-icon')?.remove();
     const lightButton = document.createElement('button');
     lightButton.type = 'button';
     lightButton.id = 'light-level-indicator-icon';
     lightButton.className = `control-icon token-light-condition ${condition}`;
-    lightButton.setAttribute('data-tooltip', `Light Level: ${condition.charAt(0).toUpperCase() + condition.slice(1)}`);
-    lightButton.disabled = true;
+    lightButton.setAttribute('aria-label', `Light Level: ${condition.charAt(0).toUpperCase() + condition.slice(1)}`);
+    lightButton.setAttribute('data-tooltip', '');
     const icon = document.createElement('i');
     icon.className = iconClass;
     lightButton.appendChild(icon);

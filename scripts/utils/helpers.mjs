@@ -22,15 +22,4 @@ export class TokenHelpers {
     const currentHP = token.actor.system.attributes.hp.value;
     return currentHP > 0;
   }
-
-  /**
-   * Find the selected token from a TokenHUD instance
-   * @param {object} tokenHUD - The token HUD object
-   * @returns {object|undefined} The selected token
-   */
-  static findSelectedToken(tokenHUD) {
-    if (canvas.tokens.controlled.length <= 1) return canvas.tokens.controlled[0];
-    const tokenWithHudOpen = canvas.tokens.controlled.find((token) => token.id === tokenHUD.object.actor.token.id);
-    return tokenWithHudOpen;
-  }
 }

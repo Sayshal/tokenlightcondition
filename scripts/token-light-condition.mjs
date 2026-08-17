@@ -47,8 +47,8 @@ export const effectQueue = {
       const updates = changes.map(({ token, newLevel }) =>
         newLevel === null ? { _id: token.id, [`flags.${MODULE.ID}.-=lightLevel`]: null } : { _id: token.id, [`flags.${MODULE.ID}.lightLevel`]: newLevel }
       );
-      if (updates.length) await canvas.scene.updateEmbeddedDocuments('Token', updates);
-      for (const { token, newLevel, oldLevel } of changes) Hooks.callAll(`${MODULE.ID}.lightLevelChanged`, token, newLevel, oldLevel);
+      const previousLevels = Object.fromEntries(changes.map(({ token, oldLevel }) => [token.id, oldLevel]));
+      if (updates.length) await canvas.scene.updateEmbeddedDocuments('Token', updates, { [MODULE.ID]: previousLevels });
     } catch (error) {
       ATLAS.log(1, 'Error processing effect queue:', error);
     } finally {
@@ -69,44 +69,49 @@ export const effectQueue = {
    */
   async processTokenEffects(token, sources) {
     const oldLevel = token.document.getFlag(MODULE.ID, 'lightLevel') ?? null;
-    const newLevel = await LightingCalculator.resolveLightLevel(token, null, sources);
-    if (newLevel === oldLevel) return null;
-    ATLAS.log(3, `Processing effects for token ${token.id}: ${oldLevel} -> ${newLevel}`);
     try {
+      const newLevel = await LightingCalculator.resolveLightLevel(token, null, sources);
+      if (newLevel === oldLevel) return null;
+      ATLAS.log(3, `Processing effects for token ${token.id}: ${oldLevel} -> ${newLevel}`);
       await EffectsManager.syncEffects(token, newLevel);
+      return { token, newLevel, oldLevel };
     } catch (error) {
       ATLAS.log(1, `Error processing effects for token ${token.id}:`, error);
       return null;
     }
-    return { token, newLevel, oldLevel };
   }
 };
 
 document.addEventListener('visibilitychange', () => effectQueue.scheduleProcessing());
 
-Hooks.once('ready', async () => {
+Hooks.once('init', () => {
   const moduleData = game.modules.get(MODULE.ID);
-  ATLAS.log(3, `Token Light Condition Ready - Version ${moduleData.version}`);
   moduleData.api = {
     determineLightLevel: (token, position) => LightingCalculator.determineLightLevel(token, position),
+    getEffectiveLightLevel,
     getLightLevel,
+    recalculate: (token, position) => LightingCalculator.calculateTokenLighting(token, position),
     refreshAllTokenLighting: calculateAllTokensLighting
   };
   globalThis.TLC = { api: moduleData.api };
+});
+
+Hooks.once('ready', async () => {
+  ATLAS.log(3, `Token Light Condition Ready - Version ${game.modules.get(MODULE.ID).version}`);
+  if (!game.users.activeGM?.isSelf) return;
   await EffectsManager.initializeEffects();
-  ui.effects?.render(true);
   ATLAS.log(3, 'Token Light Condition initialization complete');
 });
 
 Hooks.on('createToken', async (tokenDocument) => {
-  if (!game.user.isGM) return;
+  if (!game.users.activeGM?.isSelf) return;
   ATLAS.log(3, `Token created: ${tokenDocument.id}`);
   const token = tokenDocument.object;
   if (token && TokenHelpers.isValidToken(token)) setTimeout(() => LightingCalculator.calculateTokenLighting(token), 150);
 });
 
 Hooks.on('updateToken', (tokenDocument, changes) => {
-  if (!game.user.isGM) return;
+  if (!game.users.activeGM?.isSelf) return;
   ATLAS.log(3, `Token updated: ${tokenDocument.id}`, { changes: Object.keys(changes) });
   const hasHiddenChange = 'hidden' in changes;
   const lightKeys = ['light.bright', 'light.dim', 'light.luminosity', 'light.angle', 'light.rotation'];
@@ -121,7 +126,7 @@ Hooks.on('updateToken', (tokenDocument, changes) => {
 });
 
 Hooks.on('moveToken', (tokenDocument, movement) => {
-  if (!game.user.isGM) return;
+  if (!game.users.activeGM?.isSelf) return;
   const lastWp = movement?.passed?.waypoints?.at(-1);
   if (!lastWp) return;
   const center = tokenDocument.getCenterPoint(lastWp);
@@ -131,25 +136,25 @@ Hooks.on('moveToken', (tokenDocument, movement) => {
 });
 
 Hooks.on('updateAmbientLight', () => {
-  if (!game.user.isGM) return;
+  if (!game.users.activeGM?.isSelf) return;
   ATLAS.log(3, 'Ambient light updated, refreshing all token lighting');
   debounceAllTokensCalculation();
 });
 
 Hooks.on('createAmbientLight', () => {
-  if (!game.user.isGM) return;
+  if (!game.users.activeGM?.isSelf) return;
   ATLAS.log(3, 'Ambient light created, refreshing all token lighting');
   debounceAllTokensCalculation();
 });
 
 Hooks.on('deleteAmbientLight', () => {
-  if (!game.user.isGM) return;
+  if (!game.users.activeGM?.isSelf) return;
   ATLAS.log(3, 'Ambient light deleted, refreshing all token lighting');
   debounceAllTokensCalculation();
 });
 
 Hooks.on('updateScene', (sceneDocument, changes) => {
-  if (!game.user.isGM) return;
+  if (!game.users.activeGM?.isSelf) return;
   if (sceneDocument.id !== canvas.scene?.id) return;
   const lightingKeys = ['environment.darknessLevel', 'environment.globalLight'];
   const hasLightingChange = lightingKeys.some((key) => foundry.utils.hasProperty(changes, key));
@@ -162,10 +167,15 @@ Hooks.on('updateScene', (sceneDocument, changes) => {
 Hooks.on('renderTokenHUD', (tokenHUD, html) => {
   const showHUD = game.settings.get(MODULE.ID, SETTINGS.SHOW_TOKEN_HUD);
   if (!showHUD) return;
-  const selectedToken = TokenHelpers.findSelectedToken(tokenHUD);
-  if (!TokenHelpers.isValidToken(selectedToken)) return;
-  if (game.user.isGM) LightingCalculator.showGMLightingHUD(selectedToken, tokenHUD, html);
-  else LightingCalculator.showPlayerLightingHUD(selectedToken, tokenHUD, html);
+  LightingCalculator.showLightingHUD(tokenHUD.object, html);
+});
+
+Hooks.on('updateToken', (tokenDocument, changes, options) => {
+  if (!(MODULE.ID in (changes.flags ?? {}))) return;
+  const newLevel = tokenDocument.getFlag(MODULE.ID, 'lightLevel') ?? null;
+  const oldLevel = options[MODULE.ID]?.[tokenDocument.id] ?? null;
+  if (newLevel === oldLevel) return;
+  Hooks.callAll(`${MODULE.ID}.lightLevelChanged`, tokenDocument, newLevel, oldLevel);
 });
 
 /**
@@ -181,12 +191,26 @@ function debounceTokenCalculation(token, position = null) {
 }
 
 /**
- * Read the light level currently stored on a token
- * @param {object} token - The token placeable or TokenDocument to read
+ * Read the environmental light level currently stored on a token
+ * @param {object} token - The Token placeable or TokenDocument to read
  * @returns {string|null} 'bright', 'dim', 'dark', or null when unset (never calculated, or cleared)
  */
 function getLightLevel(token) {
   return (token?.document ?? token)?.getFlag(MODULE.ID, 'lightLevel') ?? null;
+}
+
+/**
+ * Read the light level a token experiences, promoting darkness to dim when its vision mode sees unlit ground
+ * @param {object} token - The Token placeable or TokenDocument to read
+ * @returns {string|null} 'bright', 'dim', 'dark', or null when unset (never calculated, or cleared)
+ */
+function getEffectiveLightLevel(token) {
+  const level = getLightLevel(token);
+  if (level !== 'dark') return level;
+  const sight = (token?.document ?? token)?.sight;
+  const visionMode = CONFIG.Canvas.visionModes[sight?.visionMode];
+  const seesUnlit = visionMode?.lighting.background.visibility === foundry.canvas.perception.VisionMode.LIGHTING_VISIBILITY.REQUIRED;
+  return sight?.enabled && seesUnlit ? 'dim' : 'dark';
 }
 
 /** Debounced function for all tokens lighting calculation */

@@ -50,7 +50,7 @@ function registerAllSettings() {
     type: Boolean,
     default: true,
     onChange: async (value) => {
-      if (!canvas.ready || !game.user.isGM) return;
+      if (!canvas.ready || !game.users.activeGM?.isSelf) return;
       if (value) await EffectsManager.initializeEffects();
       const tokens = canvas.tokens.placeables.filter((token) => TokenHelpers.isValidToken(token));
       await Promise.all(tokens.map((token) => EffectsManager.syncEffects(token, token.document.getFlag(MODULE.ID, 'lightLevel') ?? null)));
@@ -75,7 +75,7 @@ function registerAllSettings() {
     default: false,
     type: Boolean,
     onChange: async () => {
-      if (canvas.ready && game.user.isGM) await calculateAllTokensLighting();
+      if (canvas.ready && game.users.activeGM?.isSelf) await calculateAllTokensLighting();
     }
   });
   ATLAS.log(3, 'All settings registered successfully');
