@@ -86,39 +86,4 @@ export class TokenHelpers {
     const tokenWithHudOpen = canvas.tokens.controlled.find((token) => token.id === tokenHUD.object.actor.token.id);
     return tokenWithHudOpen;
   }
-
-  /**
-   * Calculate 3D distance from a resolved token position to a light source.
-   * @param {object} lightSource - The light source
-   * @param {{x: number, y: number, elevation: number}} position - Resolved token center + elevation
-   * @returns {number} Pixel distance
-   */
-  static calculate3DDistance(lightSource, position) {
-    const gridSize = canvas.grid.size;
-    const gridDistance = canvas.scene.grid.distance;
-    const tokenZ = (position.elevation / gridDistance) * gridSize;
-    const lightZ = (lightSource.elevation / gridDistance) * gridSize;
-    const dx = position.x - lightSource.x;
-    const dy = position.y - lightSource.y;
-    const dz = tokenZ - lightZ;
-    return Math.sqrt(dx * dx + dy * dy + dz * dz);
-  }
-
-  /**
-   * Test for wall collision between two points using Foundry's collision detection
-   * @param {object} sourceToken - The source token
-   * @param {object} targetObject - The target object with center coordinates
-   * @returns {boolean} True if there is a wall collision blocking line of sight
-   */
-  static hasWallCollision(sourceToken, targetObject) {
-    try {
-      const testResult = CONFIG.Canvas.polygonBackends.sight.testCollision(sourceToken.center, targetObject.center, { type: 'sight', mode: 'all' });
-      const hasCollision = testResult.length > 0;
-      if (hasCollision) ATLAS.log(3, `Wall collision detected between token ${sourceToken.id} and target`);
-      return hasCollision;
-    } catch (error) {
-      ATLAS.log(1, 'Error testing wall collision:', error);
-      return false;
-    }
-  }
 }

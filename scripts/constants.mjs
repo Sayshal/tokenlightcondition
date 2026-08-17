@@ -7,7 +7,6 @@ export const SETTINGS = {
   ADD_EFFECTS: 'addEffects',
   DELAY_CALCULATIONS: 'delaycalculations',
   ENABLE: 'enable',
-  GLOBAL_ILLUMINATION: 'globalIllumination',
   NEGATIVE_LIGHTS: 'negativelights',
   SHOW_TOKEN_HUD: 'showTokenHud'
 };

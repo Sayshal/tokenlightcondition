@@ -39,8 +39,8 @@ Token Light Condition automatically tracks each token's lighting condition (brig
 
 ### **Advanced Lighting Features**
 
-- **Global Illumination Support**: Respects scene-wide lighting settings with intelligent overrides
-- **Negative Light Sources**: Experimental support for darkness-creating light sources
+- **Global Illumination Support**: Reads the scene's global light and darkness range on every calculation
+- **Darkness Sources**: Optional support for lights configured to create darkness rather than remove it
 - **3D Elevation Awareness**: Moderate support for Levels and 3D elevation systems
 - **Angled Light Precision**: Accurate calculations for directional and cone lighting
 
@@ -100,9 +100,8 @@ Take control of lighting across your entire scene:
 Customize the system to match your campaign needs:
 
 - **Effect Control**: Choose between full effects, tracking-only, or complete disable modes
-- **Global Illumination**: Configure how scene-wide lighting interacts with local light sources
 - **Performance Tuning**: Adjust calculation delays for optimal performance in large scenes
-- **Experimental Features**: Enable negative light support and advanced 3D calculations
+- **Darkness Sources**: Enable support for lights that create darkness
 
 ### Professional Tools
 
@@ -129,9 +128,8 @@ Fine-tune the system through comprehensive settings:
 
 - **Show TokenHUD**: Toggle the display of lighting indicators on token selection
 - **Add Token Effects**: Enable or disable automatic status effect application
-- **Global Illumination**: Control how scene lighting interacts with local sources
 - **Delay Calculations**: Add processing delays for performance optimization (0-3000ms)
-- **Negative Lights Support**: Experimental feature for darkness-creating light sources
+- **Negative Lights Support**: Count darkness-creating light sources when determining a token's level
 
 ---
 
@@ -175,7 +173,6 @@ Whether you're running a gritty dungeon crawl where every torch matters or an ep
 
 - **PF2e Compatibility**: Not fully guaranteed - please report any issues
 - **3D Map Support**: Moderate support for elevation systems - bug reports appreciated
-- **Negative Lights**: Experimental feature that may need refinement based on usage
 - **Performance**: Large scenes with many light sources may benefit from delay configuration
 
 ---

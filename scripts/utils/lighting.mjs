@@ -1,21 +1,34 @@
 import { LIGHTING, MODULE, SETTINGS } from '../constants.mjs';
 import { TokenHelpers } from './helpers.mjs';
 
+/**
+ * A light source contributed by a consumer through the gatherLightSources hook.
+ * @typedef {object} ContributedSource
+ * @property {number} x - Canvas x coordinate
+ * @property {number} y - Canvas y coordinate
+ * @property {number} [elevation] - Elevation in scene distance units
+ * @property {number} [dim] - Dim radius in scene distance units
+ * @property {number} [bright] - Bright radius in scene distance units
+ * @property {number} [priority] - Resolution priority against competing sources
+ * @property {boolean} [darkness] - Whether the source creates darkness rather than light
+ */
+
 /** Core lighting calculation engine for determining token light conditions */
 export class LightingCalculator {
   /**
    * Calculate lighting condition for a single token
    * @param {object} token - The token to analyze
-   * @param {{x: number, y: number, elevation: number}|null} [position] - Resolved center + elevation; falls back to token.center when null (movement callers must pass this because tokenDocument.x/y are stale at moveToken fire time)
+   * @param {{x: number, y: number, elevation: number}|null} [position] - Resolved center + elevation; falls back to token.center when null
+   * @param {object[]|null} [sources] - Pre-gathered source list; gathered on demand when null
    */
-  static async calculateTokenLighting(token, position = null) {
+  static async calculateTokenLighting(token, position = null, sources = null) {
     if (!game.user.isGM) return;
     if (!TokenHelpers.isValidToken(token)) return;
     ATLAS.log(3, `Calculating lighting for token: ${token.id}`);
     const pos = position ?? { x: token.center.x, y: token.center.y, elevation: token.document.elevation };
     try {
       if (TokenHelpers.hasValidHitPoints(token)) {
-        const lightLevel = await this.determineLightLevel(token, pos);
+        const lightLevel = await this.determineLightLevel(token, pos, sources);
         const currentLightLevel = token.actor.getFlag(MODULE.ID, 'lightLevel');
         if (currentLightLevel !== lightLevel) {
           ATLAS.log(3, `Light level changed from ${currentLightLevel} to ${lightLevel} for token ${token.id}`);
@@ -36,33 +49,25 @@ export class LightingCalculator {
   static async refreshAllTokenLighting() {
     ATLAS.log(3, 'Refreshing lighting for all tokens');
     const validTokens = canvas.tokens.placeables.filter((token) => TokenHelpers.isValidToken(token));
-    const promises = validTokens.map((token) => this.calculateTokenLighting(token));
+    const sources = this.gatherLightSources();
+    const promises = validTokens.map((token) => this.calculateTokenLighting(token, null, sources));
     await Promise.all(promises);
-    ATLAS.log(3, `Processed ${validTokens.length} tokens for lighting updates`);
+    ATLAS.log(3, `Processed ${validTokens.length} tokens against ${sources.length} sources`);
   }
 
   /**
    * Determine the lighting level for a specific token
    * @param {object} token - The token to analyze
    * @param {{x: number, y: number, elevation: number}|null} [position] - Resolved token center + elevation; falls back to the token's own center when omitted
+   * @param {object[]|null} [sources] - Pre-gathered source list; gathered on demand when null
    * @returns {Promise<string>} The lighting condition ('bright', 'dim', or 'dark')
    */
-  static async determineLightLevel(token, position = null) {
+  static async determineLightLevel(token, position = null, sources = null) {
     ATLAS.log(3, `Analyzing lighting conditions for token: ${token.id}`);
     const pos = position ?? { x: token.center.x, y: token.center.y, elevation: token.document.elevation };
     try {
-      let lightLevel = LIGHTING.LEVELS.DARK;
-      let globalIlluminationActive = false;
-      const globalConfig = game.settings.get(MODULE.ID, SETTINGS.GLOBAL_ILLUMINATION);
-      if (globalConfig) {
-        globalIlluminationActive = this._checkGlobalIllumination(token);
-        if (globalIlluminationActive) {
-          lightLevel = LIGHTING.LEVELS.BRIGHT;
-          ATLAS.log(3, 'Global illumination provides bright light');
-        }
-      }
-      const shouldCheckIndividualLights = !globalIlluminationActive || game.settings.get(MODULE.ID, SETTINGS.NEGATIVE_LIGHTS);
-      if (shouldCheckIndividualLights) lightLevel = await this._processLightSources(token, lightLevel, globalIlluminationActive, pos);
+      const baseLevel = this._globalIlluminationLevel(pos) ?? LIGHTING.LEVELS.DARK;
+      const lightLevel = this._processLightSources(sources ?? this.gatherLightSources(), pos, baseLevel);
       const lightLevelText = this._convertLightLevelToText(lightLevel);
       ATLAS.log(3, `Final light level for token ${token.id}: ${lightLevelText}`);
       return lightLevelText;
@@ -102,139 +107,128 @@ export class LightingCalculator {
   }
 
   /**
-   * Calculate the angle between a token and a light source
-   * @param {object} token - The token
-   * @param {object} lightSource - The light source
-   * @returns {number} The angle in degrees
+   * Gather every source that can affect a token on this scene, in resolution order.
+   * @returns {object[]} Sources ordered by ascending priority, darkness after equal-priority light
    */
-  static calculateLightAngle(token, lightSource) {
-    const deltaX = lightSource.center.x - token.center.x;
-    const deltaY = token.center.y - lightSource.center.y;
-    if (deltaX === 0 && deltaY === 0) return 0;
-    let angle = Math.atan2(deltaX, deltaY) * (180 / Math.PI);
-    if (angle < 0) angle += 360;
-    return angle;
-  }
-
-  /**
-   * Check if global illumination should provide bright light for a token
-   * @param {object} token - The token to check
-   * @returns {boolean} True if global illumination provides bright light
-   * @private
-   */
-  static _checkGlobalIllumination(token) {
-    const globalLight = canvas.scene.environment.globalLight.enabled;
-    const darkness = canvas.scene.environment.darknessLevel;
-    const globalLightThreshold = canvas.scene.environment.globalLight.darkness.max ?? 1;
-    if (globalLight && globalLightThreshold && darkness <= globalLightThreshold) {
-      if (this._isTokenUnderLightRestrictingTile(token)) {
-        ATLAS.log(3, `Token ${token.id} under light-restricting tile, global illumination blocked`);
-        return false;
-      }
-      return true;
+  static gatherLightSources() {
+    const globalSource = canvas.environment.globalLightSource;
+    const sources = [];
+    for (const source of canvas.effects.lightSources) {
+      if (source.active && source !== globalSource) sources.push(this._describeSource(source, false));
     }
-    return false;
+    if (game.settings.get(MODULE.ID, SETTINGS.NEGATIVE_LIGHTS)) {
+      for (const source of canvas.effects.darknessSources) {
+        if (source.active) sources.push(this._describeSource(source, true));
+      }
+    }
+    const contributed = [];
+    Hooks.callAll(`${MODULE.ID}.gatherLightSources`, contributed, canvas.scene);
+    for (const contribution of contributed) sources.push(this._describeContribution(contribution));
+    return sources.sort((a, b) => a.priority - b.priority || Number(a.darkness) - Number(b.darkness));
   }
 
   /**
-   * Process all light sources to determine their effect on a token
-   * @param {object} token - The token to analyze
-   * @param {number} currentLightLevel - The current light level
-   * @param {boolean} globalIlluminationActive - Whether global illumination is active
-   * @param {{x: number, y: number, elevation: number}} position - Resolved token center + elevation
-   * @returns {Promise<number>} The final light level
+   * Describe a canvas light or darkness source in the shape the fold consumes
+   * @param {object} source - A PointLightSource or PointDarknessSource
+   * @param {boolean} darkness - Whether the source emits darkness
+   * @returns {object} The source description
    * @private
    */
-  static async _processLightSources(token, currentLightLevel, globalIlluminationActive, position) {
-    let lightLevel = currentLightLevel;
-    const lightSources = [...canvas.lighting.objects.children, ...canvas.tokens.placeables];
-    const sortedLights = lightSources.sort((a, b) => {
-      const aLuminosity = (a.document.light ?? a.document.config)?.luminosity ?? 0;
-      const bLuminosity = (b.document.light ?? b.document.config)?.luminosity ?? 0;
-      return bLuminosity - aLuminosity;
-    });
-    const supportNegativeLights = game.settings.get(MODULE.ID, SETTINGS.NEGATIVE_LIGHTS);
-    for (const lightSource of sortedLights) lightLevel = await this._processIndividualLight(token, lightSource, lightLevel, globalIlluminationActive, supportNegativeLights, position);
+  static _describeSource(source, darkness) {
+    return {
+      x: source.x,
+      y: source.y,
+      elevation: source.elevation,
+      dim: source.data.dim,
+      bright: source.data.bright,
+      priority: source.priority,
+      darkness,
+      contains: (point) => source.testPoint(point)
+    };
+  }
+
+  /**
+   * Describe a consumer-contributed source.
+   * @param {ContributedSource} contribution - The contributed source
+   * @returns {object} The source description
+   * @private
+   */
+  static _describeContribution(contribution) {
+    const distancePixels = canvas.dimensions.distancePixels;
+    const elevation = contribution.elevation ?? 0;
+    const dim = (contribution.dim ?? 0) * distancePixels;
+    const bright = (contribution.bright ?? 0) * distancePixels;
+    const radius = Math.max(dim, bright);
+    return {
+      x: contribution.x,
+      y: contribution.y,
+      elevation,
+      dim,
+      bright,
+      priority: contribution.priority ?? 0,
+      darkness: Boolean(contribution.darkness),
+      contains: (point) => Math.abs(point.elevation - elevation) * distancePixels <= radius && Math.hypot(point.x - contribution.x, point.y - contribution.y) <= radius
+    };
+  }
+
+  /**
+   * Resolve the level the scene environment provides at a position
+   * @param {{x: number, y: number, elevation: number}} position - Resolved token center + elevation
+   * @returns {number|null} The light level, or null when global light does not reach the position
+   * @private
+   */
+  static _globalIlluminationLevel(position) {
+    const globalLight = canvas.scene.environment.globalLight;
+    if (!globalLight.enabled) return null;
+    const darkness = canvas.effects.getDarknessLevel(position);
+    if (!darkness.between(globalLight.darkness.min, globalLight.darkness.max)) return null;
+    if (this._lightRestrictingTileElevation(position) !== null) {
+      ATLAS.log(3, 'Position is under a light-restricting tile, global illumination blocked');
+      return null;
+    }
+    return globalLight.bright ? LIGHTING.LEVELS.BRIGHT : LIGHTING.LEVELS.DIM;
+  }
+
+  /**
+   * Fold every source into a final light level
+   * @param {object[]} sources - Ordered source descriptions from gatherLightSources
+   * @param {{x: number, y: number, elevation: number}} position - Resolved token center + elevation
+   * @param {number} baseLevel - The level the environment already provides
+   * @returns {number} The final light level
+   * @private
+   */
+  static _processLightSources(sources, position, baseLevel) {
+    const tileElevation = this._lightRestrictingTileElevation(position);
+    const hasDarkness = sources.some((source) => source.darkness);
+    let lightLevel = baseLevel;
+    for (const source of sources) {
+      if (!hasDarkness && lightLevel === LIGHTING.LEVELS.BRIGHT) break;
+      if (tileElevation !== null && source.elevation >= tileElevation) continue;
+      if (!source.contains(position)) continue;
+      const inBright = Math.hypot(position.x - source.x, position.y - source.y) <= source.bright;
+      if (source.darkness) lightLevel = Math.min(lightLevel, inBright ? LIGHTING.LEVELS.DARK : LIGHTING.LEVELS.DIM);
+      else lightLevel = Math.max(lightLevel, inBright ? LIGHTING.LEVELS.BRIGHT : LIGHTING.LEVELS.DIM);
+    }
     return lightLevel;
   }
 
   /**
-   * Process an individual light source's effect on a token
-   * @param {object} token - The target token
-   * @param {object} lightSource - The light source
-   * @param {number} currentLightLevel - Current light level
-   * @param {boolean} globalIlluminationActive - Whether global illumination is active
-   * @param {boolean} supportNegativeLights - Whether negative lights are supported
+   * Find the lowest light-restricting tile covering a position from above
    * @param {{x: number, y: number, elevation: number}} position - Resolved token center + elevation
-   * @returns {Promise<number>} Updated light level
+   * @returns {number|null} The tile's elevation, or null when no such tile covers the position
    * @private
    */
-  static async _processIndividualLight(token, lightSource, currentLightLevel, globalIlluminationActive, supportNegativeLights, position) {
-    const isTokenLight = Boolean(lightSource.light);
-    const source = isTokenLight ? lightSource.light : lightSource.lightSource;
-    if (!source?.active) return currentLightLevel;
-    const tokenDistance = TokenHelpers.calculate3DDistance(source, position);
-    const dimRadius = source.data.dim;
-    const brightRadius = source.data.bright;
-    const isNegativeLight = supportNegativeLights && source.data.luminosity < 0;
-    ATLAS.log(3, `Light analysis - distance: ${tokenDistance}, dim: ${dimRadius}, bright: ${brightRadius}, negative: ${isNegativeLight}`);
-    if (tokenDistance > Math.max(dimRadius, brightRadius)) return currentLightLevel;
-    if (!this._isTokenInLightAngle(token, lightSource, source)) return currentLightLevel;
-    if (TokenHelpers.hasWallCollision(token, lightSource)) return currentLightLevel;
-    let newLightLevel = currentLightLevel;
-    if (tokenDistance <= dimRadius && dimRadius > 0) {
-      if (isNegativeLight && currentLightLevel > LIGHTING.LEVELS.DIM) newLightLevel = LIGHTING.LEVELS.DIM;
-      else if (!isNegativeLight && currentLightLevel < LIGHTING.LEVELS.DIM) newLightLevel = LIGHTING.LEVELS.DIM;
+  static _lightRestrictingTileElevation(position) {
+    let lowest = null;
+    for (const tile of canvas.tiles?.placeables ?? []) {
+      if (tile.document.restrictions?.light !== true) continue;
+      const elevation = tile.document.elevation || 0;
+      if (elevation <= position.elevation) continue;
+      if (lowest !== null && elevation >= lowest) continue;
+      const covers = tile.mesh?.containsCanvasPoint(position) ?? tile.bounds.contains(position.x, position.y);
+      if (covers) lowest = elevation;
     }
-    if (tokenDistance <= brightRadius && brightRadius > 0) {
-      if (isNegativeLight && currentLightLevel > LIGHTING.LEVELS.DARK) newLightLevel = LIGHTING.LEVELS.DARK;
-      else if (!isNegativeLight && currentLightLevel < LIGHTING.LEVELS.BRIGHT && !globalIlluminationActive) newLightLevel = LIGHTING.LEVELS.BRIGHT;
-    }
-    return newLightLevel;
-  }
-
-  /**
-   * Check if a token is within the angle of a directional light source
-   * @param {object} token - The token to check
-   * @param {object} lightSource - The light source
-   * @param {object} source - The actual light source data
-   * @returns {boolean} True if token is within light angle
-   * @private
-   */
-  static _isTokenInLightAngle(token, lightSource, source) {
-    const lightAngle = source.data.angle;
-    if (lightAngle >= 360) return true;
-    const lightRotation = source.data.rotation;
-    const tokenAngle = this.calculateLightAngle(token, lightSource);
-    let angleDifference = Math.abs(tokenAngle - lightRotation);
-    if (angleDifference > 180) angleDifference = 360 - angleDifference;
-    const isWithinCone = angleDifference <= lightAngle / 2;
-    if (!isWithinCone) ATLAS.log(3, `Token outside light cone - angle difference: ${angleDifference}, cone half-angle: ${lightAngle / 2}`);
-    return isWithinCone;
-  }
-
-  /**
-   * Check if a token is underneath a tile with light restrictions
-   * @param {object} token - The token to check
-   * @returns {boolean} True if token is under a light-restricting tile
-   * @private
-   */
-  static _isTokenUnderLightRestrictingTile(token) {
-    if (!canvas.tiles?.placeables) return false;
-    const tokenElevation = token.document.elevation || 0;
-    const lightRestrictingTiles = canvas.tiles.placeables.filter((tile) => tile.document?.restrictions?.light === true);
-    if (lightRestrictingTiles.length === 0) return false;
-    for (const tile of lightRestrictingTiles) {
-      const isTokenInTile = token.bounds.intersects(tile.bounds);
-      if (isTokenInTile) {
-        const tileElevation = tile.document.elevation || 0;
-        if (tokenElevation < tileElevation) {
-          ATLAS.log(3, `Token ${token.id} blocked by light-restricting tile at elevation ${tileElevation}`);
-          return true;
-        }
-      }
-    }
-    return false;
+    return lowest;
   }
 
   /**

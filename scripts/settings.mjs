@@ -80,18 +80,6 @@ function registerAllSettings() {
     }
   });
 
-  game.settings.register(MODULE.ID, SETTINGS.GLOBAL_ILLUMINATION, {
-    name: game.i18n.localize('TOKENLIGHTCONDITION.Settings.GlobalIllumination.Name'),
-    hint: game.i18n.localize('TOKENLIGHTCONDITION.Settings.GlobalIllumination.Hint'),
-    scope: 'world',
-    config: true,
-    default: false,
-    type: Boolean,
-    onChange: async () => {
-      if (canvas.ready && game.user.isGM) await LightingCalculator.refreshAllTokenLighting();
-    }
-  });
-
   game.settings.register(MODULE.ID, SETTINGS.DELAY_CALCULATIONS, {
     name: game.i18n.localize('TOKENLIGHTCONDITION.Settings.DelayCalculations.Name'),
     hint: game.i18n.localize('TOKENLIGHTCONDITION.Settings.DelayCalculations.Hint'),
