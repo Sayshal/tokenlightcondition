@@ -1,7 +1,6 @@
 import { MODULE, SETTINGS } from './constants.mjs';
-import { effectQueue } from './token-light-condition.mjs';
+import { calculateAllTokensLighting, effectQueue } from './token-light-condition.mjs';
 import { EffectsManager } from './utils/effects.mjs';
-import { LightingCalculator } from './utils/lighting.mjs';
 
 /**
  * Troubleshooter lines covering live lighting state.
@@ -10,8 +9,7 @@ import { LightingCalculator } from './utils/lighting.mjs';
 function troubleshooterDebug() {
   const counts = { bright: 0, dim: 0, dark: 0, unset: 0 };
   for (const token of canvas?.tokens?.placeables ?? []) {
-    if (!token.actor) continue;
-    const level = token.actor.getFlag(MODULE.ID, 'lightLevel') ?? 'unset';
+    const level = token.document.getFlag(MODULE.ID, 'lightLevel') ?? 'unset';
     if (level in counts) counts[level] += 1;
   }
   return [
@@ -75,7 +73,7 @@ function registerAllSettings() {
     onChange: async (value) => {
       if (canvas.ready && game.user.isGM) {
         if (value) await EffectsManager.initializeEffects();
-        else await LightingCalculator.refreshAllTokenLighting();
+        else await calculateAllTokensLighting();
       }
     }
   });

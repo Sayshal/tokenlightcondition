@@ -4,88 +4,87 @@ import { TokenHelpers } from './utils/helpers.mjs';
 import { LightingCalculator } from './utils/lighting.mjs';
 
 let processingUpdate = false;
+let pendingRefresh = false;
 let refreshTimeoutId;
 
-/**
- * Effect processing queue system to prevent infinite loops
- */
+/** Effect processing queue. */
 export const effectQueue = {
-  pendingOperations: new Map(),
+  pendingOperations: new Set(),
   processingActive: false,
-  MAX_OPERATION_AGE: 5000,
+  drained: Promise.resolve(),
+  resolveDrained: null,
 
   /**
-   * Add a token operation to the processing queue
+   * Queue a token for re-derivation on the next drain
    * @param {string} tokenId - The token ID
-   * @param {string} lightLevel - The light level or 'clear' to remove effects
    */
-  add(tokenId, lightLevel) {
-    this.pendingOperations.set(tokenId, { lightLevel, timestamp: Date.now() });
-    ATLAS.log(3, `Queued operation for token ${tokenId}: ${lightLevel}`);
+  add(tokenId) {
+    if (!this.resolveDrained) this.drained = new Promise((resolve) => (this.resolveDrained = resolve));
+    this.pendingOperations.add(tokenId);
+    ATLAS.log(3, `Queued operation for token ${tokenId}`);
     this.scheduleProcessing();
   },
 
-  /** Schedule processing of queued operations on the next animation frame */
+  /** Schedule processing of queued operations; a backgrounded tab runs no animation frames */
   scheduleProcessing() {
     if (this.processingActive) return;
-    requestAnimationFrame(() => {
-      this.processQueue();
-    });
+    if (document.hidden) setTimeout(() => this.processQueue(), 0);
+    else requestAnimationFrame(() => this.processQueue());
   },
 
-  /** Process all queued operations in a controlled, non-recursive manner */
+  /** Re-derive, apply and commit every queued token */
   async processQueue() {
     if (this.processingActive || this.pendingOperations.size === 0) return;
     this.processingActive = true;
     ATLAS.log(3, `Processing ${this.pendingOperations.size} queued operations`);
     try {
-      const operations = new Map(this.pendingOperations);
+      const tokenIds = [...this.pendingOperations];
       this.pendingOperations.clear();
-      const now = Date.now();
-      const validOperations = new Map();
-      for (const [tokenId, operation] of operations) {
-        if (now - operation.timestamp < this.MAX_OPERATION_AGE) validOperations.set(tokenId, operation);
-        else ATLAS.log(2, `Discarding stale operation for token ${tokenId}`);
-      }
-      const changes = [];
-      for (const [tokenId, { lightLevel }] of validOperations) {
-        const token = canvas.tokens.get(tokenId);
-        if (!token || !TokenHelpers.isValidToken(token)) continue;
-        const oldLevel = token.actor?.getFlag(MODULE.ID, 'lightLevel') ?? null;
-        const processed = await this.processTokenEffects(token, lightLevel);
-        if (processed) changes.push({ token, newLevel: lightLevel === 'clear' ? null : lightLevel, oldLevel });
-      }
+      const tokens = tokenIds.map((tokenId) => canvas.tokens.get(tokenId)).filter((token) => token && TokenHelpers.isValidToken(token));
+      const sources = LightingCalculator.gatherLightSources();
+      const results = await Promise.all(tokens.map((token) => this.processTokenEffects(token, sources)));
+      const changes = results.filter((change) => change);
+      const updates = changes.map(({ token, newLevel }) =>
+        newLevel === null ? { _id: token.id, [`flags.${MODULE.ID}.-=lightLevel`]: null } : { _id: token.id, [`flags.${MODULE.ID}.lightLevel`]: newLevel }
+      );
+      if (updates.length) await canvas.scene.updateEmbeddedDocuments('Token', updates);
       for (const { token, newLevel, oldLevel } of changes) Hooks.callAll(`${MODULE.ID}.lightLevelChanged`, token, newLevel, oldLevel);
     } catch (error) {
       ATLAS.log(1, 'Error processing effect queue:', error);
     } finally {
       this.processingActive = false;
       if (this.pendingOperations.size > 0) this.scheduleProcessing();
+      else {
+        this.resolveDrained?.();
+        this.resolveDrained = null;
+      }
     }
   },
 
   /**
-   * Process effects for a single token without triggering hooks
+   * Re-derive one token's level and apply the matching effects, without committing the flag
    * @param {object} token - The token to process
-   * @param {string} lightLevel - The light level ('bright', 'dim', 'dark', or 'clear')
-   * @returns {Promise<boolean>} True when the effects and flag were committed
+   * @param {object[]} sources - Pre-gathered source list shared across the drain
+   * @returns {Promise<{token: object, newLevel: string|null, oldLevel: string|null}|null>} The transition to commit, or null when nothing changed or the effect writes failed
    */
-  async processTokenEffects(token, lightLevel) {
+  async processTokenEffects(token, sources) {
+    const oldLevel = token.document.getFlag(MODULE.ID, 'lightLevel') ?? null;
+    const newLevel = await LightingCalculator.resolveLightLevel(token, null, sources);
+    if (newLevel === oldLevel) return null;
+    ATLAS.log(3, `Processing effects for token ${token.id}: ${oldLevel} -> ${newLevel}`);
     try {
-      ATLAS.log(3, `Processing effects for token ${token.id}: ${lightLevel}`);
       await EffectsManager.clearEffects(token);
-      if (lightLevel === 'dark') await EffectsManager.addDarkEffect(token);
-      else if (lightLevel === 'dim') await EffectsManager.addDimEffect(token);
-      if (lightLevel !== 'clear') await token.actor.setFlag(MODULE.ID, 'lightLevel', lightLevel);
-      else await token.actor.unsetFlag(MODULE.ID, 'lightLevel');
-      ATLAS.log(3, `Completed effects processing for token ${token.id}`);
-      return true;
+      if (newLevel === 'dark') await EffectsManager.addDarkEffect(token);
+      else if (newLevel === 'dim') await EffectsManager.addDimEffect(token);
     } catch (error) {
       ATLAS.log(1, `Error processing effects for token ${token.id}:`, error);
-      return false;
+      return null;
     }
+    return { token, newLevel, oldLevel };
   }
 };
+
+document.addEventListener('visibilitychange', () => effectQueue.scheduleProcessing());
 
 Hooks.once('ready', async () => {
   const moduleData = game.modules.get(MODULE.ID);
@@ -188,32 +187,42 @@ function debounceTokenCalculation(token, position = null) {
 }
 
 /**
- * Read the light level currently stored on a token's actor
- * @param {object} token - The token to read
+ * Read the light level currently stored on a token
+ * @param {object} token - The token placeable or TokenDocument to read
  * @returns {string|null} 'bright', 'dim', 'dark', or null when unset (never calculated, or cleared)
  */
 function getLightLevel(token) {
-  return token.actor?.getFlag(MODULE.ID, 'lightLevel') ?? null;
+  return (token?.document ?? token)?.getFlag(MODULE.ID, 'lightLevel') ?? null;
 }
 
 /** Debounced function for all tokens lighting calculation */
 function debounceAllTokensCalculation() {
-  if (processingUpdate) return;
   const delay = game.settings.get(MODULE.ID, SETTINGS.DELAY_CALCULATIONS);
   if (refreshTimeoutId) clearTimeout(refreshTimeoutId);
   if (delay > 0) refreshTimeoutId = setTimeout(calculateAllTokensLighting, delay);
   else calculateAllTokensLighting();
 }
 
-/** Calculate lighting for all tokens with concurrency protection */
-async function calculateAllTokensLighting() {
-  if (processingUpdate) return;
+/**
+ * Calculate lighting for all tokens, coalescing concurrent requests, and settle once the queue has committed
+ * @returns {Promise<'refreshed'|'coalesced'>} 'coalesced' when an in-flight refresh absorbed this request
+ */
+export async function calculateAllTokensLighting() {
+  if (processingUpdate) {
+    pendingRefresh = true;
+    return 'coalesced';
+  }
   processingUpdate = true;
   try {
-    await LightingCalculator.refreshAllTokenLighting();
+    do {
+      pendingRefresh = false;
+      await LightingCalculator.refreshAllTokenLighting();
+      await effectQueue.drained;
+    } while (pendingRefresh);
   } finally {
     processingUpdate = false;
   }
+  return 'refreshed';
 }
 
 /** Main module class for scene controls and external API */

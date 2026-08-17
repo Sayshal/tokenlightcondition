@@ -1,4 +1,5 @@
 import { LIGHTING, MODULE, SETTINGS } from '../constants.mjs';
+import { effectQueue } from '../token-light-condition.mjs';
 import { TokenHelpers } from './helpers.mjs';
 
 /**
@@ -16,7 +17,19 @@ import { TokenHelpers } from './helpers.mjs';
 /** Core lighting calculation engine for determining token light conditions */
 export class LightingCalculator {
   /**
-   * Calculate lighting condition for a single token
+   * Resolve the level a token should currently carry
+   * @param {object} token - The token to analyze
+   * @param {{x: number, y: number, elevation: number}|null} [position] - Resolved center + elevation; falls back to token.center when null
+   * @param {object[]|null} [sources] - Pre-gathered source list; gathered on demand when null
+   * @returns {Promise<string|null>} 'bright', 'dim', 'dark', or null when the token should carry no level at all
+   */
+  static async resolveLightLevel(token, position = null, sources = null) {
+    if (!TokenHelpers.hasValidHitPoints(token)) return null;
+    return this.determineLightLevel(token, position, sources);
+  }
+
+  /**
+   * Calculate lighting condition for a single token and queue it when the level has moved
    * @param {object} token - The token to analyze
    * @param {{x: number, y: number, elevation: number}|null} [position] - Resolved center + elevation; falls back to token.center when null
    * @param {object[]|null} [sources] - Pre-gathered source list; gathered on demand when null
@@ -25,20 +38,13 @@ export class LightingCalculator {
     if (!game.user.isGM) return;
     if (!TokenHelpers.isValidToken(token)) return;
     ATLAS.log(3, `Calculating lighting for token: ${token.id}`);
-    const pos = position ?? { x: token.center.x, y: token.center.y, elevation: token.document.elevation };
     try {
-      if (TokenHelpers.hasValidHitPoints(token)) {
-        const lightLevel = await this.determineLightLevel(token, pos, sources);
-        const currentLightLevel = token.actor.getFlag(MODULE.ID, 'lightLevel');
-        if (currentLightLevel !== lightLevel) {
-          ATLAS.log(3, `Light level changed from ${currentLightLevel} to ${lightLevel} for token ${token.id}`);
-          const { effectQueue } = await import('../token-light-condition.mjs');
-          effectQueue.add(token.id, lightLevel);
-        }
-      } else {
-        ATLAS.log(3, `Token ${token.id} has no valid HP, clearing effects`);
-        const { effectQueue } = await import('../token-light-condition.mjs');
-        effectQueue.add(token.id, 'clear');
+      const lightLevel = await this.resolveLightLevel(token, position, sources);
+      const currentLightLevel = token.document.getFlag(MODULE.ID, 'lightLevel') ?? null;
+      if (currentLightLevel === lightLevel) effectQueue.pendingOperations.delete(token.id);
+      else {
+        ATLAS.log(3, `Light level changed from ${currentLightLevel} to ${lightLevel} for token ${token.id}`);
+        effectQueue.add(token.id);
       }
     } catch (error) {
       ATLAS.log(1, `Error calculating lighting for token ${token.id}:`, error);
@@ -86,7 +92,7 @@ export class LightingCalculator {
   static async showGMLightingHUD(token, _tokenHUD, html) {
     if (!TokenHelpers.isValidToken(token)) return;
     if (!TokenHelpers.hasValidHitPoints(token)) return;
-    const lightCondition = token.actor.getFlag(MODULE.ID, 'lightLevel') || 'bright';
+    const lightCondition = token.document.getFlag(MODULE.ID, 'lightLevel') || 'bright';
     const iconClass = LIGHTING.ICONS[lightCondition];
     this._createLightingIndicator(html, iconClass, lightCondition);
   }
@@ -100,7 +106,7 @@ export class LightingCalculator {
   static async showPlayerLightingHUD(token, _tokenHUD, html) {
     if (!TokenHelpers.isValidToken(token)) return;
     if (!TokenHelpers.hasValidHitPoints(token)) return;
-    const storedLightLevel = token.actor.getFlag(MODULE.ID, 'lightLevel');
+    const storedLightLevel = token.document.getFlag(MODULE.ID, 'lightLevel');
     const lightCondition = storedLightLevel || 'bright';
     const iconClass = LIGHTING.ICONS[lightCondition];
     this._createLightingIndicator(html, iconClass, lightCondition);

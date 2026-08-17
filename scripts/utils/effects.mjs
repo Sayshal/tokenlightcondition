@@ -59,18 +59,13 @@ export class EffectsManager {
       return;
     }
     ATLAS.log(3, `Clearing lighting effects for token: ${token.id}`);
-    const gameSystemId = game.system.id;
-    try {
-      switch (gameSystemId) {
-        case 'pf2e':
-          await this._clearPF2eEffects(token);
-          break;
-        default:
-          await this._clearGenericEffects(token);
-          break;
-      }
-    } catch (error) {
-      ATLAS.log(1, `Error clearing effects for token ${token.id}:`, error);
+    switch (game.system.id) {
+      case 'pf2e':
+        await this._clearPF2eEffects(token);
+        break;
+      default:
+        await this._clearGenericEffects(token);
+        break;
     }
   }
 
@@ -112,18 +107,13 @@ export class EffectsManager {
       return;
     }
     ATLAS.log(3, `Adding ${effectType} effect to token: ${token.id}`);
-    const gameSystemId = game.system.id;
-    try {
-      switch (gameSystemId) {
-        case 'pf2e':
-          await this._addPF2eEffect(token, effectType);
-          break;
-        default:
-          await this._addGenericEffect(token, effectType);
-          break;
-      }
-    } catch (error) {
-      ATLAS.log(1, `Error adding ${effectType} effect to token ${token.id}:`, error);
+    switch (game.system.id) {
+      case 'pf2e':
+        await this._addPF2eEffect(token, effectType);
+        break;
+      default:
+        await this._addGenericEffect(token, effectType);
+        break;
     }
   }
 
@@ -207,12 +197,9 @@ export class EffectsManager {
    */
   static async _addPF2eEffect(token, effectType) {
     const effectItem = this._findPF2eWorldItem(effectType);
-    if (effectItem) {
-      await token.actor.createEmbeddedDocuments('Item', [effectItem.toObject()]);
-      ATLAS.log(3, `Added PF2e ${effectType} effect to token: ${token.id}`);
-    } else {
-      ATLAS.log(2, `PF2e effect item not found: ${effectType}`);
-    }
+    if (!effectItem) throw new Error(`PF2e effect item not found: ${effectType}`);
+    await token.actor.createEmbeddedDocuments('Item', [effectItem.toObject()]);
+    ATLAS.log(3, `Added PF2e ${effectType} effect to token: ${token.id}`);
   }
 
   /**
@@ -224,29 +211,21 @@ export class EffectsManager {
    */
   static async _addGenericEffect(token, effectType) {
     ATLAS.log(3, `Creating ${effectType} effect for token: ${token.id}`);
-    try {
-      if (this._isCPREffectInterfaceEnabled()) {
-        const cprEffect = this._findCPREffect(effectType);
-        if (cprEffect) {
-          const effectData = cprEffect.toObject();
-          effectData.statuses = [effectType];
-          const effect = await ActiveEffect.create(effectData, { keepId: true, parent: token.actor });
-          ATLAS.log(3, `Created CPR ${effectType} effect: ${effect?.id}`);
-          return effect;
-        }
+    if (this._isCPREffectInterfaceEnabled()) {
+      const cprEffect = this._findCPREffect(effectType);
+      if (cprEffect) {
+        const effectData = cprEffect.toObject();
+        effectData.statuses = [effectType];
+        const effect = await ActiveEffect.create(effectData, { keepId: true, parent: token.actor });
+        ATLAS.log(3, `Created CPR ${effectType} effect: ${effect?.id}`);
+        return effect;
       }
-      const effectData = EFFECT_DATA.getEffectData(effectType);
-      if (!effectData) {
-        ATLAS.log(1, `Invalid effect type: ${effectType}`);
-        return;
-      }
-      const effect = await ActiveEffect.create(effectData, { keepId: true, parent: token.actor });
-      ATLAS.log(3, `Created ${effectType} effect: ${effect?.id}`);
-      return effect;
-    } catch (error) {
-      ATLAS.log(1, `Error creating ${effectType} effect:`, error);
-      throw error;
     }
+    const effectData = EFFECT_DATA.getEffectData(effectType);
+    if (!effectData) throw new Error(`Invalid effect type: ${effectType}`);
+    const effect = await ActiveEffect.create(effectData, { keepId: true, parent: token.actor });
+    ATLAS.log(3, `Created ${effectType} effect: ${effect?.id}`);
+    return effect;
   }
 
   /**

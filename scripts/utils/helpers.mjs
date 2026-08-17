@@ -1,4 +1,5 @@
 import { MODULE, SETTINGS, VALID_ACTOR_TYPES } from '../constants.mjs';
+import { calculateAllTokensLighting } from '../token-light-condition.mjs';
 import { EffectsManager } from './effects.mjs';
 import { LightingCalculator } from './lighting.mjs';
 
@@ -22,7 +23,7 @@ export class TokenHelpers {
       await game.settings.set(MODULE.ID, SETTINGS.ENABLE, enabled);
       if (!game.user.isGM) return;
       if (enabled) {
-        await LightingCalculator.refreshAllTokenLighting();
+        await calculateAllTokensLighting();
       } else {
         const validTokens = canvas.tokens.placeables.filter((token) => this.isValidToken(token));
         const clearPromises = validTokens.map((token) => EffectsManager.clearEffects(token));
