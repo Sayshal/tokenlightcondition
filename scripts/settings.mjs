@@ -1,6 +1,7 @@
 import { MODULE, SETTINGS } from './constants.mjs';
 import { calculateAllTokensLighting, effectQueue } from './token-light-condition.mjs';
 import { EffectsManager } from './utils/effects.mjs';
+import { TokenHelpers } from './utils/helpers.mjs';
 
 /**
  * Troubleshooter lines covering live lighting state.
@@ -20,31 +21,9 @@ function troubleshooterDebug() {
   ];
 }
 
-Hooks.once('setup', () => {
+Hooks.once('init', () => {
   ATLAS.register('tokenlightcondition', { title: MODULE.TITLE, github: 'Sayshal/tokenlightcondition', debug: troubleshooterDebug });
-  ATLAS.log(3, 'Setting up Token Light Condition module');
-  game.settings.register(MODULE.ID, SETTINGS.ENABLE, {
-    name: 'tokenlightcondition.enable',
-    scope: 'world',
-    config: false,
-    type: Boolean,
-    default: true,
-    onChange: (value) => {
-      if (!canvas.ready || !game.user.isGM) return;
-      if (ui.controls.control?.name === 'lighting') {
-        const tool = ui.controls.control.tools['tokenlightcontrol-enable'];
-        if (tool) {
-          tool.active = value;
-          ui.controls.render();
-        }
-      }
-    }
-  });
-});
-
-Hooks.once('ready', () => {
-  const module = game.modules.get(MODULE.ID);
-  ATLAS.log(3, `Initializing Token Light Condition ${module.version}`);
+  ATLAS.log(3, `Initializing Token Light Condition ${game.modules.get(MODULE.ID).version}`);
   registerAllSettings();
 });
 
@@ -55,8 +34,8 @@ Hooks.once('ready', () => {
 function registerAllSettings() {
   ATLAS.log(3, 'Registering module settings');
   game.settings.register(MODULE.ID, SETTINGS.SHOW_TOKEN_HUD, {
-    name: game.i18n.localize('TOKENLIGHTCONDITION.Settings.ShowTokenHud.Name'),
-    hint: game.i18n.localize('TOKENLIGHTCONDITION.Settings.ShowTokenHud.Hint'),
+    name: 'TOKENLIGHTCONDITION.Settings.ShowTokenHud.Name',
+    hint: 'TOKENLIGHTCONDITION.Settings.ShowTokenHud.Hint',
     scope: 'client',
     config: true,
     default: true,
@@ -64,23 +43,23 @@ function registerAllSettings() {
   });
 
   game.settings.register(MODULE.ID, SETTINGS.ADD_EFFECTS, {
-    name: game.i18n.localize('TOKENLIGHTCONDITION.Settings.AddEffects.Name'),
-    hint: game.i18n.localize('TOKENLIGHTCONDITION.Settings.AddEffects.Hint'),
+    name: 'TOKENLIGHTCONDITION.Settings.AddEffects.Name',
+    hint: 'TOKENLIGHTCONDITION.Settings.AddEffects.Hint',
     scope: 'world',
     config: true,
     type: Boolean,
     default: true,
     onChange: async (value) => {
-      if (canvas.ready && game.user.isGM) {
-        if (value) await EffectsManager.initializeEffects();
-        else await calculateAllTokensLighting();
-      }
+      if (!canvas.ready || !game.user.isGM) return;
+      if (value) await EffectsManager.initializeEffects();
+      const tokens = canvas.tokens.placeables.filter((token) => TokenHelpers.isValidToken(token));
+      await Promise.all(tokens.map((token) => EffectsManager.syncEffects(token, token.document.getFlag(MODULE.ID, 'lightLevel') ?? null)));
     }
   });
 
   game.settings.register(MODULE.ID, SETTINGS.DELAY_CALCULATIONS, {
-    name: game.i18n.localize('TOKENLIGHTCONDITION.Settings.DelayCalculations.Name'),
-    hint: game.i18n.localize('TOKENLIGHTCONDITION.Settings.DelayCalculations.Hint'),
+    name: 'TOKENLIGHTCONDITION.Settings.DelayCalculations.Name',
+    hint: 'TOKENLIGHTCONDITION.Settings.DelayCalculations.Hint',
     scope: 'world',
     config: true,
     default: 0,
@@ -89,12 +68,15 @@ function registerAllSettings() {
   });
 
   game.settings.register(MODULE.ID, SETTINGS.NEGATIVE_LIGHTS, {
-    name: game.i18n.localize('TOKENLIGHTCONDITION.Settings.NegativeLights.Name'),
-    hint: game.i18n.localize('TOKENLIGHTCONDITION.Settings.NegativeLights.Hint'),
+    name: 'TOKENLIGHTCONDITION.Settings.NegativeLights.Name',
+    hint: 'TOKENLIGHTCONDITION.Settings.NegativeLights.Hint',
     scope: 'world',
     config: true,
     default: false,
-    type: Boolean
+    type: Boolean,
+    onChange: async () => {
+      if (canvas.ready && game.user.isGM) await calculateAllTokensLighting();
+    }
   });
   ATLAS.log(3, 'All settings registered successfully');
 }

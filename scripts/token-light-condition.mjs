@@ -73,9 +73,7 @@ export const effectQueue = {
     if (newLevel === oldLevel) return null;
     ATLAS.log(3, `Processing effects for token ${token.id}: ${oldLevel} -> ${newLevel}`);
     try {
-      await EffectsManager.clearEffects(token);
-      if (newLevel === 'dark') await EffectsManager.addDarkEffect(token);
-      else if (newLevel === 'dim') await EffectsManager.addDimEffect(token);
+      await EffectsManager.syncEffects(token, newLevel);
     } catch (error) {
       ATLAS.log(1, `Error processing effects for token ${token.id}:`, error);
       return null;
@@ -100,19 +98,15 @@ Hooks.once('ready', async () => {
   ATLAS.log(3, 'Token Light Condition initialization complete');
 });
 
-Hooks.on('getSceneControlButtons', (controls) => {
-  TokenLightConditionModule.addSceneControls(controls);
-});
-
 Hooks.on('createToken', async (tokenDocument) => {
-  if (!game.user.isGM || !TokenHelpers.isModuleEnabled()) return;
+  if (!game.user.isGM) return;
   ATLAS.log(3, `Token created: ${tokenDocument.id}`);
   const token = tokenDocument.object;
   if (token && TokenHelpers.isValidToken(token)) setTimeout(() => LightingCalculator.calculateTokenLighting(token), 150);
 });
 
 Hooks.on('updateToken', (tokenDocument, changes) => {
-  if (!game.user.isGM || !TokenHelpers.isModuleEnabled()) return;
+  if (!game.user.isGM) return;
   ATLAS.log(3, `Token updated: ${tokenDocument.id}`, { changes: Object.keys(changes) });
   const hasHiddenChange = 'hidden' in changes;
   const lightKeys = ['light.bright', 'light.dim', 'light.luminosity', 'light.angle', 'light.rotation'];
@@ -127,7 +121,7 @@ Hooks.on('updateToken', (tokenDocument, changes) => {
 });
 
 Hooks.on('moveToken', (tokenDocument, movement) => {
-  if (!game.user.isGM || !TokenHelpers.isModuleEnabled()) return;
+  if (!game.user.isGM) return;
   const lastWp = movement?.passed?.waypoints?.at(-1);
   if (!lastWp) return;
   const center = tokenDocument.getCenterPoint(lastWp);
@@ -137,25 +131,25 @@ Hooks.on('moveToken', (tokenDocument, movement) => {
 });
 
 Hooks.on('updateAmbientLight', () => {
-  if (!game.user.isGM || !TokenHelpers.isModuleEnabled()) return;
+  if (!game.user.isGM) return;
   ATLAS.log(3, 'Ambient light updated, refreshing all token lighting');
   debounceAllTokensCalculation();
 });
 
 Hooks.on('createAmbientLight', () => {
-  if (!game.user.isGM || !TokenHelpers.isModuleEnabled()) return;
+  if (!game.user.isGM) return;
   ATLAS.log(3, 'Ambient light created, refreshing all token lighting');
   debounceAllTokensCalculation();
 });
 
 Hooks.on('deleteAmbientLight', () => {
-  if (!game.user.isGM || !TokenHelpers.isModuleEnabled()) return;
+  if (!game.user.isGM) return;
   ATLAS.log(3, 'Ambient light deleted, refreshing all token lighting');
   debounceAllTokensCalculation();
 });
 
 Hooks.on('updateScene', (sceneDocument, changes) => {
-  if (!game.user.isGM || !TokenHelpers.isModuleEnabled()) return;
+  if (!game.user.isGM) return;
   if (sceneDocument.id !== canvas.scene?.id) return;
   const lightingKeys = ['environment.darknessLevel', 'environment.globalLight'];
   const hasLightingChange = lightingKeys.some((key) => foundry.utils.hasProperty(changes, key));
@@ -167,7 +161,7 @@ Hooks.on('updateScene', (sceneDocument, changes) => {
 
 Hooks.on('renderTokenHUD', (tokenHUD, html) => {
   const showHUD = game.settings.get(MODULE.ID, SETTINGS.SHOW_TOKEN_HUD);
-  if (!showHUD || !TokenHelpers.isModuleEnabled()) return;
+  if (!showHUD) return;
   const selectedToken = TokenHelpers.findSelectedToken(tokenHUD);
   if (!TokenHelpers.isValidToken(selectedToken)) return;
   if (game.user.isGM) LightingCalculator.showGMLightingHUD(selectedToken, tokenHUD, html);
@@ -224,35 +218,3 @@ export async function calculateAllTokensLighting() {
   }
   return 'refreshed';
 }
-
-/** Main module class for scene controls and external API */
-export class TokenLightConditionModule {
-  /**
-   * Add scene control buttons for the lighting tools
-   * @param {Array} controls - The controls array from Foundry
-   */
-  static addSceneControls(controls) {
-    if (!game.user.isGM) return;
-    try {
-      const lightingControl = controls.lighting;
-      if (!lightingControl?.tools) {
-        ATLAS.log(2, 'Lighting controls not found, cannot add module button');
-        return;
-      }
-      lightingControl.tools['tokenlightcontrol-enable'] = {
-        name: 'tokenlightcontrol-enable',
-        order: 999,
-        title: 'Toggle Token Light Condition',
-        icon: 'fa-solid fa-eye-low-vision',
-        toggle: true,
-        active: game.settings.get(MODULE.ID, SETTINGS.ENABLE),
-        onChange: (_event, active) => TokenHelpers.toggleModule(active)
-      };
-      ATLAS.log(3, 'Scene control button added successfully');
-    } catch (error) {
-      ATLAS.log(1, 'Error adding scene control button:', error);
-    }
-  }
-}
-
-export default TokenLightConditionModule;

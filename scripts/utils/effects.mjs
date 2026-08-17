@@ -5,14 +5,8 @@ export class EffectsManager {
   /** Initialize effects system based on the current game system */
   static async initializeEffects() {
     ATLAS.log(3, 'Initializing effects system');
-    try {
-      const addEffects = game.settings.get(MODULE.ID, SETTINGS.ADD_EFFECTS);
-      if (!addEffects) {
-        ATLAS.log(3, 'Effect creation disabled in settings');
-        return;
-      }
-    } catch {
-      ATLAS.log(2, 'Settings not yet registered, skipping effect initialization');
+    if (!game.settings.get(MODULE.ID, SETTINGS.ADD_EFFECTS)) {
+      ATLAS.log(3, 'Effect creation disabled in settings');
       return;
     }
     const gameSystemId = game.system.id;
@@ -70,6 +64,17 @@ export class EffectsManager {
   }
 
   /**
+   * Clear a token's lighting effects and apply the one matching a level.
+   * @param {object} token - The token to sync
+   * @param {string|null} level - 'dark', 'dim', or null for no effect
+   */
+  static async syncEffects(token, level) {
+    await this.clearEffects(token);
+    if (level === 'dark') await this.addDarkEffect(token);
+    else if (level === 'dim') await this.addDimEffect(token);
+  }
+
+  /**
    * Add a dark lighting effect to a token
    * @param {object} token - The token to add the effect to
    */
@@ -96,13 +101,7 @@ export class EffectsManager {
       ATLAS.log(2, `Cannot add ${effectType} effect - invalid token or actor`);
       return;
     }
-    let addEffects = true;
-    try {
-      addEffects = game.settings.get(MODULE.ID, SETTINGS.ADD_EFFECTS);
-    } catch {
-      ATLAS.log(2, 'addEffects setting not available, defaulting to true');
-    }
-    if (!addEffects) {
+    if (!game.settings.get(MODULE.ID, SETTINGS.ADD_EFFECTS)) {
       ATLAS.log(3, `Effect creation disabled, skipping ${effectType} effect`);
       return;
     }

@@ -6,7 +6,6 @@ export const MODULE = {
 export const SETTINGS = {
   ADD_EFFECTS: 'addEffects',
   DELAY_CALCULATIONS: 'delaycalculations',
-  ENABLE: 'enable',
   NEGATIVE_LIGHTS: 'negativelights',
   SHOW_TOKEN_HUD: 'showTokenHud'
 };

@@ -46,7 +46,6 @@ Token Light Condition automatically tracks each token's lighting condition (brig
 
 ### **Powerful GM Controls**
 
-- **One-Click Toggle**: Easy enable/disable control directly in the lighting toolbar
 - **Flexible Enforcement**: Choose between automatic effects or tracking-only modes
 - **Performance Optimization**: Configurable delay systems for large scenes
 - **Rule Customization**: Fine-tune lighting behavior to match your campaign needs
@@ -90,7 +89,6 @@ The module runs in the background and updates lighting conditions when tokens mo
 
 Take control of lighting across your entire scene:
 
-- **Master Toggle**: Enable or disable the system with one click from the lighting controls
 - **Bulk Processing**: Automatically update all tokens when lighting conditions change
 - **Scene Integration**: Responds to ambient light changes, darkness level adjustments, and global illumination
 - **Token Filtering**: Smart detection ensures only relevant tokens are processed
@@ -99,7 +97,7 @@ Take control of lighting across your entire scene:
 
 Customize the system to match your campaign needs:
 
-- **Effect Control**: Choose between full effects, tracking-only, or complete disable modes
+- **Effect Control**: Choose between full effects and tracking-only modes
 - **Performance Tuning**: Adjust calculation delays for optimal performance in large scenes
 - **Darkness Sources**: Enable support for lights that create darkness
 
