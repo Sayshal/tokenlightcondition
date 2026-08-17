@@ -97,9 +97,6 @@ Hooks.once('ready', async () => {
   };
   globalThis.TLC = { api: moduleData.api };
   await EffectsManager.initializeEffects();
-  setTimeout(async () => {
-    await initializeIntegrations();
-  }, 100);
   ui.effects?.render(true);
   ATLAS.log(3, 'Token Light Condition initialization complete');
 });
@@ -216,45 +213,6 @@ async function calculateAllTokensLighting() {
     await LightingCalculator.refreshAllTokenLighting();
   } finally {
     processingUpdate = false;
-  }
-}
-
-/** Initialize third-party integrations */
-async function initializeIntegrations() {
-  ATLAS.log(3, 'Initializing third-party integrations');
-  if (game.modules.get('chris-premades')?.active) {
-    try {
-      const effectInterface = game.settings.get('chris-premades', 'effectInterface');
-      if (effectInterface === true) await integrateCPREffects();
-    } catch {
-      ATLAS.log(2, "Chris's Premades integration not available");
-    }
-  }
-}
-
-/** Integrate with Chris's Premades Effect Interface */
-async function integrateCPREffects() {
-  try {
-    ATLAS.log(3, "Setting up Chris's Premades integration");
-    const cprItem = game.items.find((item) => item.flags['chris-premades']?.effectInterface);
-    if (!cprItem) {
-      ATLAS.log(2, 'CPR Effect Interface item not found');
-      return;
-    }
-    for (const effectType of ['dark', 'dim']) {
-      const existingEffect = cprItem.effects.find((effect) => effect.flags?.[MODULE.ID]?.type === effectType);
-      if (!existingEffect) {
-        const { EFFECT_DATA } = await import('./constants.mjs');
-        const effectData = EFFECT_DATA.getEffectData(effectType);
-        if (effectData) {
-          await ActiveEffect.create(effectData, { keepId: true, parent: cprItem });
-          ATLAS.log(3, `Created CPR effect: ${effectType}`);
-        }
-      }
-    }
-    ATLAS.log(3, 'CPR integration completed successfully');
-  } catch (error) {
-    ATLAS.log(1, 'CPR integration failed:', error);
   }
 }
 

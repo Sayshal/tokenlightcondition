@@ -32,13 +32,15 @@ export const EFFECT_DATA = {
     const effectDefinition = baseEffects[effectType];
     if (!effectDefinition) return null;
     return {
+      _id: effectDefinition.id,
       name: effectDefinition.name,
       img: effectDefinition.img,
       description: effectDefinition.description,
       statuses: effectDefinition.statuses,
       disabled: false,
       transfer: false,
-      flags: { [MODULE.ID]: { type: effectType, lightLevel: effectType, timestamp: Date.now() } }
+      showIcon: CONST.ACTIVE_EFFECT_SHOW_ICON.ALWAYS,
+      flags: { [MODULE.ID]: { type: effectType } }
     };
   }
 };
