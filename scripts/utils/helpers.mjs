@@ -77,33 +77,6 @@ export class TokenHelpers {
   }
 
   /**
-   * Find a token by its document ID
-   * @param {string} tokenId - The token document ID to search for
-   * @returns {object|undefined} The found token or undefined
-   */
-  static findTokenById(tokenId) {
-    return canvas.tokens.placeables.find((token) => token.id === tokenId);
-  }
-
-  /**
-   * Find a token by its associated actor ID
-   * @param {string} actorId - The actor ID to search for
-   * @returns {object|undefined} The found token or undefined
-   */
-  static findTokenByActorId(actorId) {
-    return canvas.tokens.placeables.find((token) => token.actor?.id === actorId);
-  }
-
-  /**
-   * Find the current user's character token on the scene
-   * @returns {object|undefined} The user's character token or undefined
-   */
-  static findUserCharacterToken() {
-    if (!game.user.character) return undefined;
-    return canvas.tokens.placeables.find((token) => token.actor?.id === game.user.character.id);
-  }
-
-  /**
    * Find the selected token from a TokenHUD instance
    * @param {object} tokenHUD - The token HUD object
    * @returns {object|undefined} The selected token
@@ -147,87 +120,5 @@ export class TokenHelpers {
       ATLAS.log(1, 'Error testing wall collision:', error);
       return false;
     }
-  }
-
-  /**
-   * Check if a token is within the bounds of a drawing shape
-   * @param {object} drawingShape - The drawing document/object
-   * @param {object} token - The token to test
-   * @returns {boolean} True if the token center is within the drawing
-   */
-  static isTokenWithinDrawing(drawingShape, token) {
-    let tokenPosition = { ...token.center };
-    const {
-      x,
-      y,
-      shape: { width, height, type, points },
-      rotation
-    } = drawingShape;
-    if (rotation !== 0) {
-      const drawingCenter = [x + 0.5 * width, y + 0.5 * height];
-      const cos = Math.cos((-rotation * Math.PI) / 180);
-      const sin = Math.sin((-rotation * Math.PI) / 180);
-      tokenPosition = {
-        x: cos * (tokenPosition.x - drawingCenter[0]) - sin * (tokenPosition.y - drawingCenter[1]) + drawingCenter[0],
-        y: sin * (tokenPosition.x - drawingCenter[0]) + cos * (tokenPosition.y - drawingCenter[1]) + drawingCenter[1]
-      };
-    }
-    const isInBounds = Number.between(tokenPosition.x, x, x + width) && Number.between(tokenPosition.y, y, y + height);
-    if (!isInBounds) return false;
-    switch (type) {
-      case 'r':
-        return true;
-      case 'e':
-        return this._isTokenInEllipse(tokenPosition, x, y, width, height);
-      case 'p':
-      case 'f':
-        return this._isTokenInPolygon(tokenPosition, points, x, y);
-      default:
-        ATLAS.log(2, `Unknown drawing shape type: ${type}`);
-        return true;
-    }
-  }
-
-  /**
-   * Test if a token position is within an elliptical shape
-   * @param {object} tokenPosition - Token center coordinates {x, y}
-   * @param {number} x - Ellipse left coordinate
-   * @param {number} y - Ellipse top coordinate
-   * @param {number} width - Ellipse width
-   * @param {number} height - Ellipse height
-   * @returns {boolean} True if token is within ellipse
-   * @private
-   */
-  static _isTokenInEllipse(tokenPosition, x, y, width, height) {
-    const centerX = x + 0.5 * width;
-    const centerY = y + 0.5 * height;
-    const radiusX = 0.5 * width;
-    const radiusY = 0.5 * height;
-    const normalizedX = (tokenPosition.x - centerX) / radiusX;
-    const normalizedY = (tokenPosition.y - centerY) / radiusY;
-    return normalizedX * normalizedX + normalizedY * normalizedY <= 1;
-  }
-
-  /**
-   * Test if a token position is within a polygon using ray casting algorithm
-   * @param {object} tokenPosition - Token center coordinates {x, y}
-   * @param {number[]} points - Polygon vertex coordinates [x1, y1, x2, y2, ...]
-   * @param {number} offsetX - X offset to apply to polygon points
-   * @param {number} offsetY - Y offset to apply to polygon points
-   * @returns {boolean} True if token is within polygon
-   * @private
-   */
-  static _isTokenInPolygon(tokenPosition, points, offsetX, offsetY) {
-    const vertices = [];
-    for (let i = 0; i < points.length; i += 2) vertices.push([points[i] + offsetX, points[i + 1] + offsetY]);
-    let isInside = false;
-    const testX = tokenPosition.x;
-    const testY = tokenPosition.y;
-    for (let i = 0, j = vertices.length - 1; i < vertices.length; j = i++) {
-      const [xi, yi] = vertices[i];
-      const [xj, yj] = vertices[j];
-      if (yi > testY !== yj > testY && testX < ((xj - xi) * (testY - yi)) / (yj - yi) + xi) isInside = !isInside;
-    }
-    return isInside;
   }
 }

@@ -32,7 +32,7 @@ Token Light Condition automatically tracks each token's lighting condition (brig
 
 ### **Enhanced Token Management**
 
-- **HUD Indicators**: Quick visual reference showing DRK, DIM, or BRT status on token selection
+- **HUD Indicators**: A light-level icon on the token HUD, with the level named on hover
 - **Living Tokens Only**: Automatically filters to characters and NPCs with HP > 0
 - **Multi-Token Updates**: Efficiently processes lighting changes across entire scenes
 - **Effect Integration**: Seamlessly works with ActiveEffects and status condition systems
@@ -42,7 +42,6 @@ Token Light Condition automatically tracks each token's lighting condition (brig
 - **Global Illumination Support**: Respects scene-wide lighting settings with intelligent overrides
 - **Negative Light Sources**: Experimental support for darkness-creating light sources
 - **3D Elevation Awareness**: Moderate support for Levels and 3D elevation systems
-- **Magical Darkness Areas**: Integration with drawing tools to create light-blocking regions
 - **Angled Light Precision**: Accurate calculations for directional and cone lighting
 
 ### **Powerful GM Controls**
@@ -75,7 +74,7 @@ Get Token Light Condition through Foundry's **Module Manager** for instant setup
 Never lose track of your character's lighting situation:
 
 - **Visual Status Effects**: Automatic Dark and Dim condition effects applied to your token
-- **Quick HUD Reference**: Right-click any token to see its current lighting status (DRK, DIM, BRT)
+- **Quick HUD Reference**: Right-click any token to see its lighting icon, and hover it to read the level
 - **Real-Time Updates**: Lighting conditions update automatically as you move or lights change
 - **Clear Visual Feedback**: Distinct effects help you immediately understand tactical advantages
 
@@ -112,7 +111,6 @@ Access advanced lighting features:
 - **Wall-Aware Calculations**: Proper line-of-sight blocking for realistic lighting
 - **Elevation Support**: 3D distance calculations for multi-level environments
 - **Angled Light Mastery**: Precise calculations for directional and cone lighting effects
-- **Drawing Integration**: Use drawing tools to create areas of magical darkness or light restriction
 
 ---
 
@@ -142,7 +140,7 @@ Fine-tune the system through comprehensive settings:
 ### Supported Systems
 
 - **D&D 5e System**: Full integration with official D&D 5e mechanics and status effects
-- **Pathfinder 2e**: Basic compatibility (V13 compatibility not guaranteed - please report issues)
+- **Pathfinder 2e**: Basic compatibility - please report issues
 
 ### Integration Support
 
@@ -175,7 +173,7 @@ Whether you're running a gritty dungeon crawl where every torch matters or an ep
 
 ## Known Limitations
 
-- **PF2e V13 Compatibility**: Not fully guaranteed for Foundry V13 - please report any issues
+- **PF2e Compatibility**: Not fully guaranteed - please report any issues
 - **3D Map Support**: Moderate support for elevation systems - bug reports appreciated
 - **Negative Lights**: Experimental feature that may need refinement based on usage
 - **Performance**: Large scenes with many light sources may benefit from delay configuration

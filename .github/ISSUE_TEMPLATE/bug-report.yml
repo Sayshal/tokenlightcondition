@@ -9,6 +9,14 @@ body:
     attributes:
       value: |
         Use this form to report an issue with the module. Please fill out all the fields to the best of your ability.
+  - type: checkboxes
+    id: troubleshooter
+    attributes:
+      label: Token Light Condition Troubleshooter
+      description: Recreate the issue being reported, and without reloading, open the troubleshooter from the 3DS:ATLAS settings menu. Download the troubleshooter file and attach it below.
+      options:
+        - label: I understand that I will not receive support until a troubleshooter file has been uploaded.
+          required: true
   - type: textarea
     id: what-happened
     attributes:
@@ -30,7 +38,7 @@ body:
     attributes:
       label: Foundry Version
       description: What version of foundry?
-      placeholder: '14.364'
+      placeholder: '14.366'
     validations:
       required: true
   - type: input

@@ -1,9 +1,29 @@
 import { MODULE, SETTINGS } from './constants.mjs';
+import { effectQueue } from './token-light-condition.mjs';
 import { EffectsManager } from './utils/effects.mjs';
 import { LightingCalculator } from './utils/lighting.mjs';
 
+/**
+ * Troubleshooter lines covering live lighting state.
+ * @returns {string[]} Markdown lines appended to the module's troubleshooter section
+ */
+function troubleshooterDebug() {
+  const counts = { bright: 0, dim: 0, dark: 0, unset: 0 };
+  for (const token of canvas?.tokens?.placeables ?? []) {
+    if (!token.actor) continue;
+    const level = token.actor.getFlag(MODULE.ID, 'lightLevel') ?? 'unset';
+    if (level in counts) counts[level] += 1;
+  }
+  return [
+    `- Scene: ${canvas?.scene?.name ?? 'none'}`,
+    `- Pending queue operations: ${effectQueue.pendingOperations.size}`,
+    `- Queue processing active: ${effectQueue.processingActive}`,
+    `- Token light levels: ${counts.bright} bright, ${counts.dim} dim, ${counts.dark} dark, ${counts.unset} unset`
+  ];
+}
+
 Hooks.once('setup', () => {
-  ATLAS.register('tokenlightcondition', { title: MODULE.TITLE, github: 'Sayshal/tokenlightcondition' });
+  ATLAS.register('tokenlightcondition', { title: MODULE.TITLE, github: 'Sayshal/tokenlightcondition', debug: troubleshooterDebug });
   ATLAS.log(3, 'Setting up Token Light Condition module');
   game.settings.register(MODULE.ID, SETTINGS.ENABLE, {
     name: 'tokenlightcondition.enable',

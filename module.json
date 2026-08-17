@@ -23,7 +23,7 @@
         "id": "dnd5e",
         "type": "system",
         "compatibility": {
-          "verified": "14.364"
+          "verified": "6.0.0"
         }
       },
       {
@@ -38,13 +38,18 @@
       }
     ]
   },
-  "esmodules": ["./scripts/settings.mjs", "./scripts/token-light-condition.mjs"],
-  "styles": ["./styles/tokenlightcondition.css"],
+  "esmodules": [
+    "./scripts/settings.mjs",
+    "./scripts/token-light-condition.mjs"
+  ],
+  "styles": [
+    "./styles/tokenlightcondition.css"
+  ],
   "url": "https://github.com/Sayshal/tokenlightcondition",
   "manifest": "https://github.com/Sayshal/tokenlightcondition/releases/latest/download/module.json",
   "download": "",
   "changelog": "https://github.com/Sayshal/tokenlightcondition/releases",
   "bugs": "https://github.com/Sayshal/tokenlightcondition/issues",
-  "readme": "https://github.com/Sayshal/tokenlightcondition/tree/dev?tab=readme-ov-file",
-  "license": "https://github.com/Sayshal/tokenlightcondition/tree/dev?tab=MIT-1-ov-file"
+  "readme": "https://github.com/Sayshal/tokenlightcondition?tab=readme-ov-file",
+  "license": "https://github.com/Sayshal/tokenlightcondition?tab=MIT-1-ov-file"
 }

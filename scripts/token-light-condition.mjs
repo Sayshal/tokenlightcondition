@@ -3,7 +3,6 @@ import { EffectsManager } from './utils/effects.mjs';
 import { TokenHelpers } from './utils/helpers.mjs';
 import { LightingCalculator } from './utils/lighting.mjs';
 
-let moduleInitialized = false;
 let processingUpdate = false;
 let refreshTimeoutId;
 
@@ -91,7 +90,6 @@ export const effectQueue = {
 Hooks.once('ready', async () => {
   const moduleData = game.modules.get(MODULE.ID);
   ATLAS.log(3, `Token Light Condition Ready - Version ${moduleData.version}`);
-  moduleInitialized = true;
   moduleData.api = {
     determineLightLevel: (token, position) => LightingCalculator.determineLightLevel(token, position),
     getLightLevel,
@@ -287,28 +285,6 @@ export class TokenLightConditionModule {
     } catch (error) {
       ATLAS.log(1, 'Error adding scene control button:', error);
     }
-  }
-
-  /**
-   * Get the current version of the module
-   * @returns {string} The module version
-   */
-  static getVersion() {
-    return game.modules.get(MODULE.ID)?.version || 'Unknown';
-  }
-
-  /**
-   * Get module statistics for debugging
-   * @returns {object} Module statistics
-   */
-  static getStats() {
-    return {
-      version: this.getVersion(),
-      initialized: moduleInitialized,
-      enabled: TokenHelpers.isModuleEnabled(),
-      queueSize: effectQueue.pendingOperations.size,
-      processingActive: effectQueue.processingActive
-    };
   }
 }
 
