@@ -22,7 +22,7 @@ let darknessTimeoutId;
  * @returns {void}
  */
 function onDarknessChange() {
-  if (!game.users.activeGM?.isSelf) return;
+  if (!ATLAS.isPrimaryGM) return;
   clearTimeout(darknessTimeoutId);
   darknessTimeoutId = setTimeout(() => debounceAllTokensCalculation(), DARKNESS_SETTLE_MS);
 }
@@ -33,7 +33,7 @@ function onDarknessChange() {
  */
 function onCanvasReady() {
   canvas.environment.addEventListener('darknessChange', onDarknessChange);
-  if (!game.users.activeGM?.isSelf) return;
+  if (!ATLAS.isPrimaryGM) return;
   ATLAS.log(3, `Canvas ready on ${canvas.scene?.name}, refreshing all token lighting`);
   debounceAllTokensCalculation();
 }
@@ -57,7 +57,7 @@ function onCanvasTearDown() {
  */
 function placeableRefreshHandler(hookName) {
   return () => {
-    if (!game.users.activeGM?.isSelf) return;
+    if (!ATLAS.isPrimaryGM) return;
     ATLAS.log(3, `${hookName}: refreshing all token lighting`);
     debounceAllTokensCalculation();
   };
@@ -70,7 +70,7 @@ function placeableRefreshHandler(hookName) {
  * @returns {void}
  */
 function onUpdateWall(_wallDocument, changes) {
-  if (!game.users.activeGM?.isSelf) return;
+  if (!ATLAS.isPrimaryGM) return;
   if (!WALL_KEYS.some((key) => key in changes)) return;
   ATLAS.log(3, 'Wall changed, refreshing all token lighting');
   debounceAllTokensCalculation();
@@ -83,7 +83,7 @@ function onUpdateWall(_wallDocument, changes) {
  * @returns {void}
  */
 function onUpdateTile(_tileDocument, changes) {
-  if (!game.users.activeGM?.isSelf) return;
+  if (!ATLAS.isPrimaryGM) return;
   if (!TILE_KEYS.some((key) => foundry.utils.hasProperty(changes, key))) return;
   ATLAS.log(3, 'Tile changed, refreshing all token lighting');
   debounceAllTokensCalculation();
@@ -95,7 +95,7 @@ function onUpdateTile(_tileDocument, changes) {
  * @returns {void}
  */
 function onCreateToken(tokenDocument) {
-  if (!game.users.activeGM?.isSelf) return;
+  if (!ATLAS.isPrimaryGM) return;
   ATLAS.log(3, `Token created: ${tokenDocument.id}`);
   setTimeout(() => {
     if (emitsLight(tokenDocument)) return debounceAllTokensCalculation();
@@ -111,7 +111,7 @@ function onCreateToken(tokenDocument) {
  * @returns {void}
  */
 function onUpdateToken(tokenDocument, changes) {
-  if (!game.users.activeGM?.isSelf) return;
+  if (!ATLAS.isPrimaryGM) return;
   ATLAS.log(3, `Token updated: ${tokenDocument.id}`, { changes: Object.keys(changes) });
   if ('light' in changes || ('rotation' in changes && emitsLight(tokenDocument))) {
     ATLAS.log(3, 'Emitted light changed, updating all tokens');
@@ -132,7 +132,7 @@ function onUpdateToken(tokenDocument, changes) {
  * @returns {Promise<void>} Resolves once the move has been accounted for
  */
 async function onMoveToken(tokenDocument, movement) {
-  if (!game.users.activeGM?.isSelf) return;
+  if (!ATLAS.isPrimaryGM) return;
   if (!movement.passed.waypoints.length) return;
   ATLAS.log(3, `Token moved: ${tokenDocument.id}`);
   await movement.animation.ended;
@@ -147,7 +147,7 @@ async function onMoveToken(tokenDocument, movement) {
  * @returns {Promise<void>} Resolves once the effects have been cleared
  */
 async function onDeleteToken(tokenDocument) {
-  if (!game.users.activeGM?.isSelf) return;
+  if (!ATLAS.isPrimaryGM) return;
   ATLAS.log(3, `Token deleted: ${tokenDocument.id}`);
   effectQueue.pendingOperations.delete(tokenDocument.id);
   const actor = tokenDocument.actor;
@@ -165,7 +165,7 @@ async function onDeleteToken(tokenDocument) {
  * @returns {void}
  */
 function onUpdateActor(actor, changes) {
-  if (!game.users.activeGM?.isSelf) return;
+  if (!ATLAS.isPrimaryGM) return;
   if (!foundry.utils.hasProperty(changes, 'system.attributes.hp.value')) return;
   for (const token of actor.getActiveTokens()) {
     if (isValidToken(token)) debounceTokenCalculation(token);
@@ -179,7 +179,7 @@ function onUpdateActor(actor, changes) {
  * @returns {void}
  */
 function onUpdateScene(sceneDocument, changes) {
-  if (!game.users.activeGM?.isSelf) return;
+  if (!ATLAS.isPrimaryGM) return;
   if (sceneDocument.id !== canvas.scene?.id) return;
   const lightingKeys = ['environment.darknessLevel', 'environment.globalLight'];
   const hasLightingChange = lightingKeys.some((key) => foundry.utils.hasProperty(changes, key));
@@ -221,7 +221,7 @@ function onUpdateTokenLightLevel(tokenDocument, changes, options) {
  * @returns {Promise<void>} Resolves once the effects exist
  */
 export async function onReady() {
-  if (!game.users.activeGM?.isSelf) return;
+  if (!ATLAS.isPrimaryGM) return;
   await EffectsManager.initializeEffects();
 }
 

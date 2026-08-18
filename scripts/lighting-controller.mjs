@@ -23,7 +23,7 @@ let warnedSceneId = null;
  * @returns {Promise<void>} Resolves once the token has been queued or dismissed
  */
 export async function calculateTokenLighting(token, position = null, sources = null) {
-  if (!game.users.activeGM?.isSelf) return;
+  if (!ATLAS.isPrimaryGM) return;
   if (!isValidToken(token)) return;
   const tokenDocument = token.document ?? token;
   ATLAS.log(3, `Calculating lighting for token: ${tokenDocument.id}`);

@@ -24,7 +24,7 @@ export function registerSettings() {
     type: Boolean,
     default: true,
     onChange: async (value) => {
-      if (!canvas.ready || !game.users.activeGM?.isSelf) return;
+      if (!canvas.ready || !ATLAS.isPrimaryGM) return;
       if (value) await EffectsManager.initializeEffects();
       const tokens = canvas.tokens.placeables.filter((token) => isValidToken(token));
       await Promise.all(tokens.map((token) => EffectsManager.syncEffects(token, token.document.getFlag(MODULE.ID, 'lightLevel') ?? null)));
