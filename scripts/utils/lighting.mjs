@@ -1,4 +1,4 @@
-import { LIGHTING, MODULE, SETTINGS } from '../constants.mjs';
+import { LIGHTING, MODULE } from '../constants.mjs';
 import { effectQueue } from '../token-light-condition.mjs';
 import { TokenHelpers } from './helpers.mjs';
 
@@ -122,10 +122,8 @@ export class LightingCalculator {
     for (const source of canvas.effects.lightSources) {
       if (source.active && source !== globalSource) sources.push(this._describeSource(source, false));
     }
-    if (game.settings.get(MODULE.ID, SETTINGS.NEGATIVE_LIGHTS)) {
-      for (const source of canvas.effects.darknessSources) {
-        if (source.active) sources.push(this._describeSource(source, true));
-      }
+    for (const source of canvas.effects.darknessSources) {
+      if (source.active) sources.push(this._describeSource(source, true));
     }
     const contributed = [];
     Hooks.callAll(`${MODULE.ID}.gatherLightSources`, contributed, canvas.scene);
@@ -161,20 +159,17 @@ export class LightingCalculator {
    */
   static _describeContribution(contribution) {
     const distancePixels = canvas.dimensions.distancePixels;
-    const elevation = contribution.elevation ?? 0;
-    const dim = (contribution.dim ?? 0) * distancePixels;
-    const bright = (contribution.bright ?? 0) * distancePixels;
-    const radius = Math.max(dim, bright);
-    return {
+    const source = {
       x: contribution.x,
       y: contribution.y,
-      elevation,
-      dim,
-      bright,
+      elevation: contribution.elevation ?? 0,
+      dim: (contribution.dim ?? 0) * distancePixels,
+      bright: (contribution.bright ?? 0) * distancePixels,
       priority: contribution.priority ?? 0,
-      darkness: Boolean(contribution.darkness),
-      contains: (point) => Math.abs(point.elevation - elevation) * distancePixels <= radius && Math.hypot(point.x - contribution.x, point.y - contribution.y) <= radius
+      darkness: Boolean(contribution.darkness)
     };
+    source.contains = (point) => this._withinRadius(source, point, Math.max(source.dim, source.bright));
+    return source;
   }
 
   /**
@@ -211,11 +206,25 @@ export class LightingCalculator {
       if (!hasDarkness && lightLevel === LIGHTING.LEVELS.BRIGHT) break;
       if (tileElevation !== null && source.elevation >= tileElevation) continue;
       if (!source.contains(position)) continue;
-      const inBright = Math.hypot(position.x - source.x, position.y - source.y) <= source.bright;
+      const inBright = this._withinRadius(source, position, source.bright);
       if (source.darkness) lightLevel = Math.min(lightLevel, inBright ? LIGHTING.LEVELS.DARK : LIGHTING.LEVELS.DIM);
       else lightLevel = Math.max(lightLevel, inBright ? LIGHTING.LEVELS.BRIGHT : LIGHTING.LEVELS.DIM);
     }
     return lightLevel;
+  }
+
+  /**
+   * Test a position against a source radius as the cylinder band core uses, not a sphere
+   * @param {object} source - A source description carrying canvas coordinates and scene-unit elevation
+   * @param {{x: number, y: number, elevation: number}} position - Resolved token center + elevation
+   * @param {number} radius - The radius to test, in canvas pixels
+   * @returns {boolean} True when the position falls inside the band
+   * @private
+   */
+  static _withinRadius(source, position, radius) {
+    const height = Math.abs(position.elevation - source.elevation) * canvas.dimensions.distancePixels;
+    if (height > radius) return false;
+    return Math.hypot(position.x - source.x, position.y - source.y) <= radius;
   }
 
   /**

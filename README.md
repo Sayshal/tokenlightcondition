@@ -40,7 +40,7 @@ Token Light Condition automatically tracks each token's lighting condition (brig
 ### **Advanced Lighting Features**
 
 - **Global Illumination Support**: Reads the scene's global light and darkness range on every calculation
-- **Darkness Sources**: Optional support for lights configured to create darkness rather than remove it
+- **Darkness Sources**: Lights configured to create darkness lower a token's level instead of raising it
 - **3D Elevation Awareness**: Moderate support for Levels and 3D elevation systems
 - **Angled Light Precision**: Accurate calculations for directional and cone lighting
 
@@ -99,7 +99,6 @@ Customize the system to match your campaign needs:
 
 - **Effect Control**: Choose between full effects and tracking-only modes
 - **Performance Tuning**: Adjust calculation delays for optimal performance in large scenes
-- **Darkness Sources**: Enable support for lights that create darkness
 
 ### Professional Tools
 
@@ -127,7 +126,6 @@ Fine-tune the system through comprehensive settings:
 - **Show TokenHUD**: Toggle the display of lighting indicators on token selection
 - **Add Token Effects**: Enable or disable automatic status effect application
 - **Delay Calculations**: Add processing delays for performance optimization (0-3000ms)
-- **Negative Lights Support**: Count darkness-creating light sources when determining a token's level
 
 ---
 

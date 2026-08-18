@@ -1,5 +1,5 @@
 import { MODULE, SETTINGS } from './constants.mjs';
-import { calculateAllTokensLighting, effectQueue } from './token-light-condition.mjs';
+import { effectQueue } from './token-light-condition.mjs';
 import { EffectsManager } from './utils/effects.mjs';
 import { TokenHelpers } from './utils/helpers.mjs';
 
@@ -65,18 +65,6 @@ function registerAllSettings() {
     default: 0,
     type: Number,
     range: { min: 0, max: 3000, step: 50 }
-  });
-
-  game.settings.register(MODULE.ID, SETTINGS.NEGATIVE_LIGHTS, {
-    name: 'TOKENLIGHTCONDITION.Settings.NegativeLights.Name',
-    hint: 'TOKENLIGHTCONDITION.Settings.NegativeLights.Hint',
-    scope: 'world',
-    config: true,
-    default: false,
-    type: Boolean,
-    onChange: async () => {
-      if (canvas.ready && game.users.activeGM?.isSelf) await calculateAllTokensLighting();
-    }
   });
   ATLAS.log(3, 'All settings registered successfully');
 }
