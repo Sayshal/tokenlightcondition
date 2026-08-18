@@ -1,2 +1,5 @@
 tokenlightcondition.lock
 /todo
+/dist
+/node_modules
+README.html
