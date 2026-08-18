@@ -6,6 +6,11 @@ import { LightingCalculator } from './utils/lighting.mjs';
 let processingUpdate = false;
 let pendingRefresh = false;
 let refreshTimeoutId;
+let darknessTimeoutId;
+
+const WALL_KEYS = ['c', 'ds', 'light', 'sight', 'dir', 'threshold'];
+const TILE_KEYS = ['restrictions.light', 'elevation', 'x', 'y', 'width', 'height'];
+const DARKNESS_SETTLE_MS = 250;
 
 /** Effect processing queue. */
 export const effectQueue = {
@@ -103,54 +108,96 @@ Hooks.once('ready', async () => {
   ATLAS.log(3, 'Token Light Condition initialization complete');
 });
 
-Hooks.on('createToken', async (tokenDocument) => {
+Hooks.on('canvasReady', () => {
+  canvas.environment.addEventListener('darknessChange', onDarknessChange);
+  if (!game.users.activeGM?.isSelf) return;
+  ATLAS.log(3, `Canvas ready on ${canvas.scene?.name}, refreshing all token lighting`);
+  debounceAllTokensCalculation();
+});
+
+Hooks.on('canvasTearDown', () => {
+  canvas.environment.removeEventListener('darknessChange', onDarknessChange);
+  clearTimeout(darknessTimeoutId);
+  effectQueue.pendingOperations.clear();
+  effectQueue.resolveDrained?.();
+  effectQueue.resolveDrained = null;
+});
+
+for (const hookName of ['createAmbientLight', 'updateAmbientLight', 'deleteAmbientLight', 'createWall', 'deleteWall', 'createTile', 'deleteTile']) {
+  Hooks.on(hookName, () => {
+    if (!game.users.activeGM?.isSelf) return;
+    ATLAS.log(3, `${hookName}: refreshing all token lighting`);
+    debounceAllTokensCalculation();
+  });
+}
+
+Hooks.on('updateWall', (_wallDocument, changes) => {
+  if (!game.users.activeGM?.isSelf) return;
+  if (!WALL_KEYS.some((key) => key in changes)) return;
+  ATLAS.log(3, 'Wall changed, refreshing all token lighting');
+  debounceAllTokensCalculation();
+});
+
+Hooks.on('updateTile', (_tileDocument, changes) => {
+  if (!game.users.activeGM?.isSelf) return;
+  if (!TILE_KEYS.some((key) => foundry.utils.hasProperty(changes, key))) return;
+  ATLAS.log(3, 'Tile changed, refreshing all token lighting');
+  debounceAllTokensCalculation();
+});
+
+Hooks.on('createToken', (tokenDocument) => {
   if (!game.users.activeGM?.isSelf) return;
   ATLAS.log(3, `Token created: ${tokenDocument.id}`);
-  const token = tokenDocument.object;
-  if (token && TokenHelpers.isValidToken(token)) setTimeout(() => LightingCalculator.calculateTokenLighting(token), 150);
+  setTimeout(() => {
+    if (emitsLight(tokenDocument)) return debounceAllTokensCalculation();
+    const token = tokenDocument.object;
+    if (token && TokenHelpers.isValidToken(token)) LightingCalculator.calculateTokenLighting(token);
+  }, 150);
 });
 
 Hooks.on('updateToken', (tokenDocument, changes) => {
   if (!game.users.activeGM?.isSelf) return;
   ATLAS.log(3, `Token updated: ${tokenDocument.id}`, { changes: Object.keys(changes) });
-  const hasHiddenChange = 'hidden' in changes;
-  const lightKeys = ['light.bright', 'light.dim', 'light.luminosity', 'light.angle', 'light.rotation'];
-  const hasLightChange = lightKeys.some((key) => foundry.utils.hasProperty(changes, key));
-  if (hasHiddenChange) {
-    const token = tokenDocument.object;
-    if (token && TokenHelpers.isValidToken(token)) debounceTokenCalculation(token);
-  } else if (hasLightChange) {
-    ATLAS.log(3, 'Light properties changed, updating all tokens');
+  if ('light' in changes || ('rotation' in changes && emitsLight(tokenDocument))) {
+    ATLAS.log(3, 'Emitted light changed, updating all tokens');
     debounceAllTokensCalculation();
+  } else if ('hidden' in changes) {
+    if (emitsLight(tokenDocument)) debounceAllTokensCalculation();
+    else {
+      const token = tokenDocument.object;
+      if (token && TokenHelpers.isValidToken(token)) debounceTokenCalculation(token);
+    }
   }
 });
 
-Hooks.on('moveToken', (tokenDocument, movement) => {
+Hooks.on('moveToken', async (tokenDocument, movement) => {
   if (!game.users.activeGM?.isSelf) return;
-  const lastWp = movement?.passed?.waypoints?.at(-1);
-  if (!lastWp) return;
-  const center = tokenDocument.getCenterPoint(lastWp);
-  const position = { x: center.x, y: center.y, elevation: lastWp.elevation ?? tokenDocument.elevation };
+  if (!movement.passed.waypoints.length) return;
+  ATLAS.log(3, `Token moved: ${tokenDocument.id}`);
+  await movement.animation.ended;
   const token = tokenDocument.object;
-  if (token && TokenHelpers.isValidToken(token)) debounceTokenCalculation(token, position);
+  if (token && TokenHelpers.isValidToken(token)) debounceTokenCalculation(token);
+  if (emitsLight(tokenDocument)) debounceAllTokensCalculation();
 });
 
-Hooks.on('updateAmbientLight', () => {
+Hooks.on('deleteToken', async (tokenDocument) => {
   if (!game.users.activeGM?.isSelf) return;
-  ATLAS.log(3, 'Ambient light updated, refreshing all token lighting');
-  debounceAllTokensCalculation();
+  ATLAS.log(3, `Token deleted: ${tokenDocument.id}`);
+  effectQueue.pendingOperations.delete(tokenDocument.id);
+  const actor = tokenDocument.actor;
+  if (actor && !actor.isToken) {
+    const survives = game.scenes.some((scene) => scene.tokens.some((token) => token.actorId === actor.id && token.id !== tokenDocument.id));
+    if (!survives) await EffectsManager.clearEffects(tokenDocument);
+  }
+  if (emitsLight(tokenDocument)) debounceAllTokensCalculation();
 });
 
-Hooks.on('createAmbientLight', () => {
+Hooks.on('updateActor', (actor, changes) => {
   if (!game.users.activeGM?.isSelf) return;
-  ATLAS.log(3, 'Ambient light created, refreshing all token lighting');
-  debounceAllTokensCalculation();
-});
-
-Hooks.on('deleteAmbientLight', () => {
-  if (!game.users.activeGM?.isSelf) return;
-  ATLAS.log(3, 'Ambient light deleted, refreshing all token lighting');
-  debounceAllTokensCalculation();
+  if (!foundry.utils.hasProperty(changes, 'system.attributes.hp.value')) return;
+  for (const token of actor.getActiveTokens()) {
+    if (TokenHelpers.isValidToken(token)) debounceTokenCalculation(token);
+  }
 });
 
 Hooks.on('updateScene', (sceneDocument, changes) => {
@@ -179,15 +226,31 @@ Hooks.on('updateToken', (tokenDocument, changes, options) => {
 });
 
 /**
+ * Whether a token contributes light to the scene
+ * @param {object} tokenDocument - The TokenDocument to test
+ * @returns {boolean} True when the token emits light or darkness
+ */
+function emitsLight(tokenDocument) {
+  const light = tokenDocument.light;
+  return Boolean(light?.dim || light?.bright);
+}
+
+/** Collapse an animated darkness transition, which fires once per frame, into a single refresh */
+function onDarknessChange() {
+  if (!game.users.activeGM?.isSelf) return;
+  clearTimeout(darknessTimeoutId);
+  darknessTimeoutId = setTimeout(() => debounceAllTokensCalculation(), DARKNESS_SETTLE_MS);
+}
+
+/**
  * Debounced function for single token lighting calculation
  * @param {object} token - The token to calculate
- * @param {{x: number, y: number, elevation: number}|null} [position] - Optional resolved position; pass when called from a movement context
  */
-function debounceTokenCalculation(token, position = null) {
+function debounceTokenCalculation(token) {
   const delay = game.settings.get(MODULE.ID, SETTINGS.DELAY_CALCULATIONS);
   if (token._lightingTimeout) clearTimeout(token._lightingTimeout);
-  if (delay > 0) token._lightingTimeout = setTimeout(() => LightingCalculator.calculateTokenLighting(token, position), delay);
-  else LightingCalculator.calculateTokenLighting(token, position);
+  if (delay > 0) token._lightingTimeout = setTimeout(() => LightingCalculator.calculateTokenLighting(token), delay);
+  else LightingCalculator.calculateTokenLighting(token);
 }
 
 /**

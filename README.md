@@ -169,6 +169,7 @@ Whether you're running a gritty dungeon crawl where every torch matters or an ep
 
 ## Known Limitations
 
+- **Viewed Scene Only**: Light levels are tracked for the scene the acting GM currently has open; a scene nobody is viewing is not recalculated
 - **PF2e Compatibility**: Not fully guaranteed - please report any issues
 - **3D Map Support**: Moderate support for elevation systems - bug reports appreciated
 - **Performance**: Large scenes with many light sources may benefit from delay configuration

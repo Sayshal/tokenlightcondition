@@ -55,6 +55,11 @@ export class LightingCalculator {
 
   /** Refresh lighting calculations for all valid tokens on the scene */
   static async refreshAllTokenLighting() {
+    const activeScene = game.scenes.active;
+    if (activeScene && canvas.scene !== activeScene) {
+      ATLAS.log(2, `Viewing ${canvas.scene?.name}; lighting can only be computed for the drawn scene, so ${activeScene.name} is not refreshed`);
+      return;
+    }
     ATLAS.log(3, 'Refreshing lighting for all tokens');
     const validTokens = canvas.tokens.placeables.filter((token) => TokenHelpers.isValidToken(token));
     const sources = this.gatherLightSources();
@@ -74,9 +79,10 @@ export class LightingCalculator {
   static async determineLightLevel(token, position = null, sources = null) {
     const tokenDocument = token.document ?? token;
     ATLAS.log(3, `Analyzing lighting conditions for token: ${tokenDocument.id}`);
-    const pos = position ?? tokenDocument.getCenterPoint();
+    const pos = position ?? this._committedCenter(tokenDocument);
+    const resolvedSources = sources ?? this.gatherLightSources();
     const baseLevel = this._globalIlluminationLevel(pos) ?? LIGHTING.LEVELS.DARK;
-    const lightLevel = this._processLightSources(sources ?? this.gatherLightSources(), pos, baseLevel);
+    const lightLevel = this._processLightSources(resolvedSources, pos, baseLevel);
     const lightLevelText = this._convertLightLevelToText(lightLevel);
     ATLAS.log(3, `Final light level for token ${tokenDocument.id}: ${lightLevelText}`);
     return lightLevelText;
@@ -93,6 +99,17 @@ export class LightingCalculator {
     const lightCondition = token.document.getFlag(MODULE.ID, 'lightLevel');
     if (!lightCondition) return;
     this._createLightingIndicator(html, LIGHTING.ICONS[lightCondition], lightCondition);
+  }
+
+  /**
+   * Resolve where a token has actually moved to, ignoring the movement animation
+   * @param {object} tokenDocument - The TokenDocument to locate
+   * @returns {{x: number, y: number, elevation: number}} The committed center point
+   * @private
+   */
+  static _committedCenter(tokenDocument) {
+    const { x, y, elevation } = tokenDocument._source;
+    return tokenDocument.getCenterPoint({ x, y, elevation });
   }
 
   /**
