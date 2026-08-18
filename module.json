@@ -1,7 +1,4 @@
 {
-  "id": "tokenlightcondition",
-  "title": "Token Light Condition",
-  "description": "Works out whether each token is standing in bright, dim, or dark light and applies the matching status effect automatically, so the dim-light disadvantage nobody remembers actually gets enforced. It accounts for ambient and token-emitted lights, walls, and elevation, and a HUD badge shows a selected token's level at a glance.",
   "authors": [
     {
       "discord": "Tyler",
@@ -12,12 +9,38 @@
       "name": "Frstrm"
     }
   ],
-  "version": "",
+  "bugs": "https://github.com/Sayshal/tokenlightcondition/issues",
+  "changelog": "https://github.com/Sayshal/tokenlightcondition/releases",
   "compatibility": {
-    "verified": "14.366",
-    "minimum": "14"
+    "minimum": "14",
+    "verified": "14.366"
   },
+  "description": "Works out whether each token is standing in bright, dim, or dark light and applies the matching status effect automatically, so the dim-light disadvantage nobody remembers actually gets enforced. It accounts for ambient and token-emitted lights, walls, and elevation, and a HUD badge shows a selected token's level at a glance.",
+  "download": "",
+  "esmodules": [
+    "tokenlightcondition.mjs"
+  ],
+  "flags": {
+    "hotReload": {
+      "extensions": [
+        "css"
+      ],
+      "paths": [
+        "styles"
+      ]
+    }
+  },
+  "id": "tokenlightcondition",
+  "license": "https://github.com/Sayshal/tokenlightcondition?tab=MIT-1-ov-file",
+  "manifest": "https://github.com/Sayshal/tokenlightcondition/releases/latest/download/module.json",
+  "readme": "https://github.com/Sayshal/tokenlightcondition?tab=readme-ov-file",
   "relationships": {
+    "requires": [
+      {
+        "id": "3ds-atlas",
+        "type": "module"
+      }
+    ],
     "systems": [
       {
         "id": "dnd5e",
@@ -30,21 +53,12 @@
         "id": "pf2e",
         "type": "system"
       }
-    ],
-    "requires": [
-      {
-        "id": "3ds-atlas",
-        "type": "module"
-      }
     ]
   },
-  "esmodules": ["tokenlightcondition.mjs"],
-  "styles": ["styles/tokenlightcondition.css"],
+  "styles": [
+    "styles/tokenlightcondition.css"
+  ],
+  "title": "Token Light Condition",
   "url": "https://github.com/Sayshal/tokenlightcondition",
-  "manifest": "https://github.com/Sayshal/tokenlightcondition/releases/latest/download/module.json",
-  "download": "",
-  "changelog": "https://github.com/Sayshal/tokenlightcondition/releases",
-  "bugs": "https://github.com/Sayshal/tokenlightcondition/issues",
-  "readme": "https://github.com/Sayshal/tokenlightcondition?tab=readme-ov-file",
-  "license": "https://github.com/Sayshal/tokenlightcondition?tab=MIT-1-ov-file"
+  "version": ""
 }

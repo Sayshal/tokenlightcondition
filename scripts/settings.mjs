@@ -1,38 +1,12 @@
 import { MODULE, SETTINGS } from './constants.mjs';
-import { effectQueue } from './token-light-condition.mjs';
-import { EffectsManager } from './utils/effects.mjs';
-import { TokenHelpers } from './utils/helpers.mjs';
-
-/**
- * Troubleshooter lines covering live lighting state.
- * @returns {string[]} Markdown lines appended to the module's troubleshooter section
- */
-function troubleshooterDebug() {
-  const counts = { bright: 0, dim: 0, dark: 0, unset: 0 };
-  for (const token of canvas?.tokens?.placeables ?? []) {
-    const level = token.document.getFlag(MODULE.ID, 'lightLevel') ?? 'unset';
-    if (level in counts) counts[level] += 1;
-  }
-  return [
-    `- Scene: ${canvas?.scene?.name ?? 'none'}`,
-    `- Pending queue operations: ${effectQueue.pendingOperations.size}`,
-    `- Queue processing active: ${effectQueue.processingActive}`,
-    `- Token light levels: ${counts.bright} bright, ${counts.dim} dim, ${counts.dark} dark, ${counts.unset} unset`
-  ];
-}
-
-Hooks.once('init', () => {
-  ATLAS.register('tokenlightcondition', { title: MODULE.TITLE, github: 'Sayshal/tokenlightcondition', debug: troubleshooterDebug });
-  ATLAS.log(3, `Initializing Token Light Condition ${game.modules.get(MODULE.ID).version}`);
-  registerAllSettings();
-});
+import { EffectsManager } from './effects.mjs';
+import { isValidToken } from './utils.mjs';
 
 /**
  * Register all module settings with proper localization and change handlers
- * @private
+ * @returns {void}
  */
-function registerAllSettings() {
-  ATLAS.log(3, 'Registering module settings');
+export function registerSettings() {
   game.settings.register(MODULE.ID, SETTINGS.SHOW_TOKEN_HUD, {
     name: 'TOKENLIGHTCONDITION.Settings.ShowTokenHud.Name',
     hint: 'TOKENLIGHTCONDITION.Settings.ShowTokenHud.Hint',
@@ -52,7 +26,7 @@ function registerAllSettings() {
     onChange: async (value) => {
       if (!canvas.ready || !game.users.activeGM?.isSelf) return;
       if (value) await EffectsManager.initializeEffects();
-      const tokens = canvas.tokens.placeables.filter((token) => TokenHelpers.isValidToken(token));
+      const tokens = canvas.tokens.placeables.filter((token) => isValidToken(token));
       await Promise.all(tokens.map((token) => EffectsManager.syncEffects(token, token.document.getFlag(MODULE.ID, 'lightLevel') ?? null)));
     }
   });
@@ -66,5 +40,4 @@ function registerAllSettings() {
     type: Number,
     range: { min: 0, max: 3000, step: 50 }
   });
-  ATLAS.log(3, 'All settings registered successfully');
 }

@@ -1,19 +1,23 @@
 .control-icon {
-  &.token-light-condition {
+  &.tokenlightcondition-indicator {
+    --tokenlightcondition-bright: rgb(255 215 0);
+    --tokenlightcondition-dark: rgb(102 102 102);
+    --tokenlightcondition-dim: rgb(192 192 192);
+
     i {
       pointer-events: none;
     }
 
     &.bright {
-      color: rgb(255 215 0);
+      color: var(--tokenlightcondition-bright);
     }
 
     &.dim {
-      color: rgb(192 192 192);
+      color: var(--tokenlightcondition-dim);
     }
 
     &.dark {
-      color: rgb(102 102 102);
+      color: var(--tokenlightcondition-dark);
     }
   }
 }

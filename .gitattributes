@@ -1,0 +1,20 @@
+# Set default behavior to automatically normalize line endings
+*               text=auto eol=crlf
+
+# Force specific filetypes to have Windows line endings (CRLF)
+*.js            text eol=crlf
+*.mjs           text eol=crlf
+*.json          text eol=crlf
+*.md            text eol=crlf
+*.txt           text eol=crlf
+*.css           text eol=crlf
+*.hbs           text eol=crlf
+*.yml           text eol=crlf
+
+# Diffing and merging strategies
+*.json          diff=json
+*.js            diff=javascript
+*.md            diff=markdown
+
+# Merge strategies
+*.json          merge=union
