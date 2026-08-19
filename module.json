@@ -17,17 +17,11 @@
   },
   "description": "Works out whether each token is standing in bright, dim, or dark light and applies the matching status effect automatically, so the dim-light disadvantage nobody remembers actually gets enforced. It accounts for ambient and token-emitted lights, walls, and elevation, and a HUD badge shows a selected token's level at a glance.",
   "download": "",
-  "esmodules": [
-    "tokenlightcondition.mjs"
-  ],
+  "esmodules": ["tokenlightcondition.mjs"],
   "flags": {
     "hotReload": {
-      "extensions": [
-        "css"
-      ],
-      "paths": [
-        "styles"
-      ]
+      "extensions": ["css"],
+      "paths": ["styles"]
     }
   },
   "id": "tokenlightcondition",
@@ -55,9 +49,7 @@
       }
     ]
   },
-  "styles": [
-    "styles/tokenlightcondition.css"
-  ],
+  "styles": ["styles/tokenlightcondition.css"],
   "title": "Token Light Condition",
   "url": "https://github.com/Sayshal/tokenlightcondition",
   "version": ""
