@@ -7,7 +7,7 @@ export const MODULE = {
 /** @enum {string} Setting keys. */
 export const SETTINGS = {
   ADD_EFFECTS: 'addEffects',
-  DELAY_CALCULATIONS: 'delaycalculations',
+  DELAY_CALCULATIONS: 'delayCalculations',
   SHOW_TOKEN_HUD: 'showTokenHud'
 };
 
