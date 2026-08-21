@@ -37,14 +37,12 @@ export const EFFECT_DATA = {
     const baseEffects = {
       dark: {
         name: _loc('TOKENLIGHTCONDITION.Effects.DarkLighting.Name'),
-        id: 'tcldarklight0000',
         img: 'icons/skills/melee/weapons-crossed-swords-black.webp',
         description: _loc('TOKENLIGHTCONDITION.Effects.DarkLighting.Description'),
         statuses: ['dark']
       },
       dim: {
         name: _loc('TOKENLIGHTCONDITION.Effects.DimLighting.Name'),
-        id: 'tcldimlight00000',
         img: 'icons/skills/melee/weapons-crossed-swords-black-gray.webp',
         description: _loc('TOKENLIGHTCONDITION.Effects.DimLighting.Description'),
         statuses: ['dim']
@@ -53,7 +51,6 @@ export const EFFECT_DATA = {
     const effectDefinition = baseEffects[effectType];
     if (!effectDefinition) return null;
     return {
-      _id: effectDefinition.id,
       name: effectDefinition.name,
       img: effectDefinition.img,
       description: effectDefinition.description,

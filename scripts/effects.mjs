@@ -201,15 +201,16 @@ export class EffectsManager {
       const cprEffect = this._findCPREffect(effectType);
       if (cprEffect) {
         const effectData = cprEffect.toObject();
+        delete effectData._id;
         effectData.statuses = [effectType];
-        const effect = await ActiveEffect.create(effectData, { keepId: true, parent: token.actor });
+        const effect = await ActiveEffect.create(effectData, { parent: token.actor });
         ATLAS.log(3, `Created CPR ${effectType} effect: ${effect?.id}`);
         return effect;
       }
     }
     const effectData = EFFECT_DATA.getEffectData(effectType);
     if (!effectData) throw new Error(`Invalid effect type: ${effectType}`);
-    const effect = await ActiveEffect.create(effectData, { keepId: true, parent: token.actor });
+    const effect = await ActiveEffect.create(effectData, { parent: token.actor });
     ATLAS.log(3, `Created ${effectType} effect: ${effect?.id}`);
     return effect;
   }
@@ -274,7 +275,7 @@ export class EffectsManager {
         if (!existingEffect) {
           const effectData = EFFECT_DATA.getEffectData(effectType);
           if (effectData) {
-            await ActiveEffect.create(effectData, { keepId: true, parent: cprItem });
+            await ActiveEffect.create(effectData, { parent: cprItem });
             ATLAS.log(3, `Created CPR integration effect: ${effectType}`);
           }
         }
