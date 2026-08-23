@@ -1,14 +1,64 @@
 ## Breaking Changes
 
-- Now requires the 3DS:ATLAS module, which handles logging, update notices, and translations for this module.
-- Raised the minimum Foundry VTT version to v14; verified compatible through 14.364.
+- Light levels are recalculated on Foundry v14 source semantics, so existing worlds will see different levels on the first refresh after upgrade.
+- Raise the minimum Foundry VTT version to v14. Verified compatible through 14.366.
+- Remove the Global Illumination setting. The scene's global light and its darkness range are always read.
+- Remove the Negative Lights Support setting. Lights configured to create darkness always lower a token's level. Earlier versions ignored them unless the off-by-default toggle was enabled.
+- Remove the module enable setting and its lighting toolbar toggle. Disabling the module in Manage Modules is the only kill switch.
+- Remove the standalone logging-level setting. Log verbosity is controlled centrally through 3DS:ATLAS.
+- Rename the stored Delay Calculations setting key to camelCase. No migration runs, so a world that configured a delay loses it and reverts to no delay. Re-enter the value after upgrading.
+- Require the 3DS:ATLAS module for logging, update notices and translations.
+- Store the token light level on the TokenDocument instead of the actor, so two tokens sharing one linked actor stop overwriting each other's level. No migration runs. Every token recomputes once on first load and the old actor flag is left behind.
+
+## New Features
+
+- Add `getEffectiveLightLevel(token)`, which reports dark as dim when the token's vision mode sees unlit ground.
+- Add `recalculate(token, position)` for updating a single token.
+- Add a `tokenlightcondition.gatherLightSources` hook for contributing lights the scene does not model as Foundry lights.
+- Add a public module API at `game.modules.get("tokenlightcondition").api`, mirrored on `globalThis.TLC.api`, exposing determineLightLevel, getEffectiveLightLevel, getLightLevel, recalculate and refreshAllTokenLighting.
+- Fire a `tokenlightcondition.lightLevelChanged` hook with (tokenDocument, newLevel, oldLevel) on every client, keyed on the token flag write. It reports null when a token's light level is cleared and skips tokens whose effect write failed.
+- Report the drawn scene, effect queue depth and per-token light level counts to the 3DS:ATLAS troubleshooter.
+
+## Bug Fixes
+
+- Apply light-restricting tiles to every source and test them against the painted tile instead of its bounding box.
+- Clear the dim and dark effects from every token on the scene when Add Token Effects is turned off, and re-apply them from each token's stored light level when it is turned back on.
+- Clear the effects left on a linked actor when its last token is deleted.
+- Contain a failure in one game system's effect setup so it can no longer abort the rest of initialization.
+- Correct the dnd5e verified compatibility version, which was recording a Foundry version number instead of a dnd5e one.
+- Draw the dim and dark lighting effects on the token again by forcing the effect icon to always show.
+- Fix the HUD badge to read the token whose HUD is open, which previously errored for linked actors with two or more tokens controlled.
+- Follow animated day/night darkness transitions and direct animateDarkness calls, which previously froze every token at the pre-transition level.
+- Hide the HUD badge instead of showing a fabricated Bright when no level is stored.
+- Identify the dim and dark effects by module flag instead of a pinned id, so a repeat write clears the previous effect instead of stacking a second one. Letting Foundry mint an id per actor also fixes the duplicate id error thrown when two tokens sharing one actor were written in the same pass.
+- Keep processing the effect queue while the Foundry tab is backgrounded.
+- Leave the stored light level and its effect unchanged when a calculation or effect write fails, so the token retries on its next recalculation.
+- Match PF2e lighting effect items by module flag or slug instead of their localized name, so renamed or translated items are still found, reused and deduped.
+- Match the PF2e legacy item cleanup on the English names earlier versions actually wrote, so a translated world no longer leaves an orphaned effect item behind.
+- Measure the bright radius as the same elevation cylinder core uses for the outer radius, so a token hovering well above a torch is no longer scored bright on planar distance alone. Contributed sources from the gatherLightSources hook are measured against the same elevation band.
+- Re-derive each queued token's level at the moment its effects are written instead of replaying the level captured when it was queued. Aged queue entries are recalculated instead of discarded.
+- Read the Chris's Premades effect interface setting through a guarded check, so an unregistered setting no longer aborts module startup or silently suppresses every effect.
+- Rebuild the light level calculation on Foundry v14 source semantics. Each light is tested with core's own point test, so light walls occlude instead of sight walls and a light's Constrained by Walls setting is honoured.
+- Recalculate a moved token from its committed destination after the movement animation ends instead of from the interpolated position mid-drag.
+- Recalculate on actor HP changes, so a downed token clears its level and a healed one re-acquires it.
+- Recalculate on scene load and scene switch, wall and door changes, and light-restricting tile changes.
+- Refresh every token when a light-emitting token is created, hidden or moved, instead of only that token.
+- Register settings at init instead of ready. PF2e effect item creation and Chris's Premades wiring are no longer silently skipped, and a token is no longer ignored for one pass the first time it is seen.
+- Resolve `refreshAllTokenLighting` only after the flags and effects are committed, and coalesce concurrent full refreshes instead of dropping them.
+- Retrigger a recalculation when a light-emitting token rotates, since that is what aims a light cone.
+- Run the lighting pipeline only on the 3DS:ATLAS primary GM, so a connected Assistant GM no longer duplicates effect writes.
+- Score a globally lit scene with no ambient lights from the scene's global light, dim or bright, instead of dark for every token.
+- Stop light passing through a floor, and match core's cylinder for range when a token is above or below a light.
+- Take darkness from the token's point, so Adjust Darkness Level regions apply.
+- Treat darkness sources as darkness rather than ordinary light and resolve them against light by priority, so a token standing in magical darkness reads dark.
 
 ## Changes
 
-- Removed the standalone logging-level setting; log verbosity is now controlled centrally through 3DS:ATLAS.
-
-## Documentation
-
-- Refreshed the module's listing description.
-- Updated the bug report form to ask for your game system and version.
-- Updated the bug report form's version examples to reference current Foundry (14.364) and dnd5e (6.0.0) releases.
+- Accept a Token or a TokenDocument on every API entry point.
+- Build the module as a single minified rollup bundle with an extracted stylesheet, and ship the release zip from the built dist directory instead of the raw source folders. Packaging only, no runtime behaviour change.
+- Gather and order the light source list once per refresh instead of once per token, and stop the scan once a token is bright on a scene with no darkness sources.
+- Give the HUD badge a working tooltip and make it keyboard focusable.
+- Publish the API at init instead of ready, so `module.active` is a sufficient guard.
+- Route the dim and dark effect names, their descriptions and the HUD label through ATLAS localization, and give the PF2e effects the same wording as every other system.
+- Skip the refresh and log when the acting GM is not viewing the active scene, since light can only be computed for the drawn scene.
+- Trim the effect flags to a single type discriminator.
