@@ -13,7 +13,7 @@
   "changelog": "https://github.com/Sayshal/tokenlightcondition/releases",
   "compatibility": {
     "minimum": "14",
-    "verified": "14.366"
+    "verified": "14.367"
   },
   "description": "Works out whether each token is standing in bright, dim, or dark light and applies the matching status effect automatically, so the dim-light disadvantage nobody remembers actually gets enforced. It accounts for ambient and token-emitted lights, walls, and elevation, and a HUD badge shows a selected token's level at a glance.",
   "download": "",
