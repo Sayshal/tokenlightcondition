@@ -1,44 +1,15 @@
 import { MODULE, SETTINGS } from './constants.mjs';
-import { EffectsManager } from './utils/effects.mjs';
-import { LightingCalculator } from './utils/lighting.mjs';
-
-Hooks.once('setup', () => {
-  ATLAS.register('tokenlightcondition', { title: MODULE.TITLE, github: 'Sayshal/tokenlightcondition' });
-  ATLAS.log(3, 'Setting up Token Light Condition module');
-  game.settings.register(MODULE.ID, SETTINGS.ENABLE, {
-    name: 'tokenlightcondition.enable',
-    scope: 'world',
-    config: false,
-    type: Boolean,
-    default: true,
-    onChange: (value) => {
-      if (!canvas.ready || !game.user.isGM) return;
-      if (ui.controls.control?.name === 'lighting') {
-        const tool = ui.controls.control.tools['tokenlightcontrol-enable'];
-        if (tool) {
-          tool.active = value;
-          ui.controls.render();
-        }
-      }
-    }
-  });
-});
-
-Hooks.once('ready', () => {
-  const module = game.modules.get(MODULE.ID);
-  ATLAS.log(3, `Initializing Token Light Condition ${module.version}`);
-  registerAllSettings();
-});
+import { EffectsManager } from './effects.mjs';
+import { isValidToken } from './utils.mjs';
 
 /**
  * Register all module settings with proper localization and change handlers
- * @private
+ * @returns {void}
  */
-function registerAllSettings() {
-  ATLAS.log(3, 'Registering module settings');
+export function registerSettings() {
   game.settings.register(MODULE.ID, SETTINGS.SHOW_TOKEN_HUD, {
-    name: game.i18n.localize('TOKENLIGHTCONDITION.Settings.ShowTokenHud.Name'),
-    hint: game.i18n.localize('TOKENLIGHTCONDITION.Settings.ShowTokenHud.Hint'),
+    name: 'TOKENLIGHTCONDITION.Settings.ShowTokenHud.Name',
+    hint: 'TOKENLIGHTCONDITION.Settings.ShowTokenHud.Hint',
     scope: 'client',
     config: true,
     default: true,
@@ -46,49 +17,27 @@ function registerAllSettings() {
   });
 
   game.settings.register(MODULE.ID, SETTINGS.ADD_EFFECTS, {
-    name: game.i18n.localize('TOKENLIGHTCONDITION.Settings.AddEffects.Name'),
-    hint: game.i18n.localize('TOKENLIGHTCONDITION.Settings.AddEffects.Hint'),
+    name: 'TOKENLIGHTCONDITION.Settings.AddEffects.Name',
+    hint: 'TOKENLIGHTCONDITION.Settings.AddEffects.Hint',
     scope: 'world',
     config: true,
     type: Boolean,
     default: true,
     onChange: async (value) => {
-      if (canvas.ready && game.user.isGM) {
-        if (value) await EffectsManager.initializeEffects();
-        else await LightingCalculator.refreshAllTokenLighting();
-      }
-    }
-  });
-
-  game.settings.register(MODULE.ID, SETTINGS.GLOBAL_ILLUMINATION, {
-    name: game.i18n.localize('TOKENLIGHTCONDITION.Settings.GlobalIllumination.Name'),
-    hint: game.i18n.localize('TOKENLIGHTCONDITION.Settings.GlobalIllumination.Hint'),
-    scope: 'world',
-    config: true,
-    default: false,
-    type: Boolean,
-    onChange: async () => {
-      if (canvas.ready && game.user.isGM) await LightingCalculator.refreshAllTokenLighting();
+      if (!canvas.ready || !ATLAS.isPrimaryGM) return;
+      if (value) await EffectsManager.initializeEffects();
+      const tokens = canvas.tokens.placeables.filter((token) => isValidToken(token));
+      await Promise.all(tokens.map((token) => EffectsManager.syncEffects(token, token.document.getFlag(MODULE.ID, 'lightLevel') ?? null)));
     }
   });
 
   game.settings.register(MODULE.ID, SETTINGS.DELAY_CALCULATIONS, {
-    name: game.i18n.localize('TOKENLIGHTCONDITION.Settings.DelayCalculations.Name'),
-    hint: game.i18n.localize('TOKENLIGHTCONDITION.Settings.DelayCalculations.Hint'),
+    name: 'TOKENLIGHTCONDITION.Settings.DelayCalculations.Name',
+    hint: 'TOKENLIGHTCONDITION.Settings.DelayCalculations.Hint',
     scope: 'world',
     config: true,
     default: 0,
     type: Number,
     range: { min: 0, max: 3000, step: 50 }
   });
-
-  game.settings.register(MODULE.ID, SETTINGS.NEGATIVE_LIGHTS, {
-    name: game.i18n.localize('TOKENLIGHTCONDITION.Settings.NegativeLights.Name'),
-    hint: game.i18n.localize('TOKENLIGHTCONDITION.Settings.NegativeLights.Hint'),
-    scope: 'world',
-    config: true,
-    default: false,
-    type: Boolean
-  });
-  ATLAS.log(3, 'All settings registered successfully');
 }

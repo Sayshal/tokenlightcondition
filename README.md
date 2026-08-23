@@ -32,22 +32,20 @@ Token Light Condition automatically tracks each token's lighting condition (brig
 
 ### **Enhanced Token Management**
 
-- **HUD Indicators**: Quick visual reference showing DRK, DIM, or BRT status on token selection
+- **HUD Indicators**: A light-level icon on the token HUD, with the level named on hover
 - **Living Tokens Only**: Automatically filters to characters and NPCs with HP > 0
 - **Multi-Token Updates**: Efficiently processes lighting changes across entire scenes
 - **Effect Integration**: Seamlessly works with ActiveEffects and status condition systems
 
 ### **Advanced Lighting Features**
 
-- **Global Illumination Support**: Respects scene-wide lighting settings with intelligent overrides
-- **Negative Light Sources**: Experimental support for darkness-creating light sources
+- **Global Illumination Support**: Reads the scene's global light and darkness range on every calculation
+- **Darkness Sources**: Lights configured to create darkness lower a token's level instead of raising it
 - **3D Elevation Awareness**: Moderate support for Levels and 3D elevation systems
-- **Magical Darkness Areas**: Integration with drawing tools to create light-blocking regions
 - **Angled Light Precision**: Accurate calculations for directional and cone lighting
 
 ### **Powerful GM Controls**
 
-- **One-Click Toggle**: Easy enable/disable control directly in the lighting toolbar
 - **Flexible Enforcement**: Choose between automatic effects or tracking-only modes
 - **Performance Optimization**: Configurable delay systems for large scenes
 - **Rule Customization**: Fine-tune lighting behavior to match your campaign needs
@@ -75,7 +73,7 @@ Get Token Light Condition through Foundry's **Module Manager** for instant setup
 Never lose track of your character's lighting situation:
 
 - **Visual Status Effects**: Automatic Dark and Dim condition effects applied to your token
-- **Quick HUD Reference**: Right-click any token to see its current lighting status (DRK, DIM, BRT)
+- **Quick HUD Reference**: Right-click any token to see its lighting icon, and hover it to read the level
 - **Real-Time Updates**: Lighting conditions update automatically as you move or lights change
 - **Clear Visual Feedback**: Distinct effects help you immediately understand tactical advantages
 
@@ -91,7 +89,6 @@ The module runs in the background and updates lighting conditions when tokens mo
 
 Take control of lighting across your entire scene:
 
-- **Master Toggle**: Enable or disable the system with one click from the lighting controls
 - **Bulk Processing**: Automatically update all tokens when lighting conditions change
 - **Scene Integration**: Responds to ambient light changes, darkness level adjustments, and global illumination
 - **Token Filtering**: Smart detection ensures only relevant tokens are processed
@@ -100,10 +97,8 @@ Take control of lighting across your entire scene:
 
 Customize the system to match your campaign needs:
 
-- **Effect Control**: Choose between full effects, tracking-only, or complete disable modes
-- **Global Illumination**: Configure how scene-wide lighting interacts with local light sources
+- **Effect Control**: Choose between full effects and tracking-only modes
 - **Performance Tuning**: Adjust calculation delays for optimal performance in large scenes
-- **Experimental Features**: Enable negative light support and advanced 3D calculations
 
 ### Professional Tools
 
@@ -112,7 +107,6 @@ Access advanced lighting features:
 - **Wall-Aware Calculations**: Proper line-of-sight blocking for realistic lighting
 - **Elevation Support**: 3D distance calculations for multi-level environments
 - **Angled Light Mastery**: Precise calculations for directional and cone lighting effects
-- **Drawing Integration**: Use drawing tools to create areas of magical darkness or light restriction
 
 ---
 
@@ -131,9 +125,7 @@ Fine-tune the system through comprehensive settings:
 
 - **Show TokenHUD**: Toggle the display of lighting indicators on token selection
 - **Add Token Effects**: Enable or disable automatic status effect application
-- **Global Illumination**: Control how scene lighting interacts with local sources
 - **Delay Calculations**: Add processing delays for performance optimization (0-3000ms)
-- **Negative Lights Support**: Experimental feature for darkness-creating light sources
 
 ---
 
@@ -142,7 +134,7 @@ Fine-tune the system through comprehensive settings:
 ### Supported Systems
 
 - **D&D 5e System**: Full integration with official D&D 5e mechanics and status effects
-- **Pathfinder 2e**: Basic compatibility (V13 compatibility not guaranteed - please report issues)
+- **Pathfinder 2e**: Basic compatibility - please report issues
 
 ### Integration Support
 
@@ -175,9 +167,9 @@ Whether you're running a gritty dungeon crawl where every torch matters or an ep
 
 ## Known Limitations
 
-- **PF2e V13 Compatibility**: Not fully guaranteed for Foundry V13 - please report any issues
+- **Viewed Scene Only**: Light levels are tracked for the scene the acting GM currently has open; a scene nobody is viewing is not recalculated
+- **PF2e Compatibility**: Not fully guaranteed - please report any issues
 - **3D Map Support**: Moderate support for elevation systems - bug reports appreciated
-- **Negative Lights**: Experimental feature that may need refinement based on usage
 - **Performance**: Large scenes with many light sources may benefit from delay configuration
 
 ---
