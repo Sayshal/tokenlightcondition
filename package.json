@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "description": "Tracks whether each token stands in bright, dim, or dark light and applies the matching status effect",
   "scripts": {
-    "lint": "eslint . --ext .js,.mjs,.cjs",
-    "lint:fix": "eslint . --ext .js,.mjs,.cjs --fix",
+    "setup": "node dev/tools/setup-links.mjs",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "stylelint": "stylelint \"**/*.css\"",
@@ -14,6 +15,17 @@
     "build:watch": "rollup -c rollup.config.mjs --watch",
     "dev": "rollup -c rollup.config.mjs --environment BUILD:development",
     "clean": "node -e \"import('fs').then(f=>f.rmSync('dist',{recursive:true,force:true}))\""
+  },
+  "lint-staged": {
+    "*.{js,mjs,cjs}": [
+      "prettier --write",
+      "eslint --fix"
+    ],
+    "*.css": [
+      "prettier --write",
+      "stylelint --fix"
+    ],
+    "*.{yml,yaml}": "prettier --write"
   },
   "author": "Tyler",
   "license": "MIT",
@@ -27,6 +39,7 @@
     "@rollup/plugin-terser": "^1.0.0",
     "eslint": "^9.27.0",
     "eslint-plugin-jsdoc": "^50.8.0",
+    "lint-staged": "^16.4.0",
     "prettier": "^3.3.3",
     "rollup": "^4.59.0",
     "rollup-plugin-copy": "^3.5.0",

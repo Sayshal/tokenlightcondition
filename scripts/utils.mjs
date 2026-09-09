@@ -11,7 +11,7 @@ export function emitsLight(tokenDocument) {
 }
 
 /**
- * Read the light level a token experiences, promoting darkness to dim when its vision mode sees unlit ground
+ * Read the light level a token experiences, promoting darkness to dim when its vision mode sees unlit ground within range
  * @param {object} token - The Token placeable or TokenDocument to read
  * @returns {string|null} 'bright', 'dim', 'dark', or null when unset (never calculated, or cleared)
  */
@@ -21,7 +21,7 @@ export function getEffectiveLightLevel(token) {
   const sight = (token?.document ?? token)?.sight;
   const visionMode = CONFIG.Canvas.visionModes[sight?.visionMode];
   const seesUnlit = visionMode?.lighting.background.visibility === foundry.canvas.perception.VisionMode.LIGHTING_VISIBILITY.REQUIRED;
-  return sight?.enabled && seesUnlit ? 'dim' : 'dark';
+  return seesUnlit && Number(sight?.range) > 0 ? 'dim' : 'dark';
 }
 
 /**
