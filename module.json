@@ -40,7 +40,7 @@
         "id": "dnd5e",
         "type": "system",
         "compatibility": {
-          "minimum": "6.0.0",
+          "minimum": "5.3.3",
           "verified": "6.0.0"
         }
       },
