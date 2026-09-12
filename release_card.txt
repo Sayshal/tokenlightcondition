@@ -1,17 +1,7 @@
 ## Breaking Changes
 
-- Token Light Condition now requires Foundry VTT v14 and the 3DS:ATLAS module. Light levels are recalculated on v14 source semantics, so existing worlds see different levels on the first refresh after upgrade.
-- The Global Illumination, Negative Lights Support, module enable and logging-level settings are removed. Lights configured to create darkness always lower a token's level, and log verbosity is set through 3DS:ATLAS.
-- The light level is stored on the TokenDocument instead of the actor, and the Delay Calculations setting key is renamed. Neither migrates, so re-enter a configured delay after upgrading.
-
-## New Features
-
-- A public module API at game.modules.get("tokenlightcondition").api, mirrored on globalThis.TLC.api, exposes determineLightLevel, getEffectiveLightLevel, getLightLevel, recalculate and refreshAllTokenLighting.
-- getEffectiveLightLevel(token) reports dark as dim when the token's vision mode sees unlit ground, and recalculate(token, position) updates a single token.
-- A tokenlightcondition.gatherLightSources hook lets other modules contribute lights the scene does not model as Foundry lights.
-- A tokenlightcondition.lightLevelChanged hook fires on every client with the token document, new level and old level, and reports null when a token's level is cleared.
-- The drawn scene, effect queue depth and per-token light level counts are reported to the 3DS:ATLAS troubleshooter.
+- Token Light Condition now declares a dnd5e minimum of 5.3.3, verified 6.0.0. A world on an older dnd5e release can no longer install or enable the module.
 
 ## Bug Fixes
 
-- 30 bugs squashed
+- 2 bugs squashed
