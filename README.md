@@ -26,18 +26,23 @@ Token Light Condition automatically tracks each token's lighting condition (brig
 
 - **Automatic Calculations**: Real-time detection of bright, dim, and dark lighting conditions
 - **Visual Effects**: Clear status effects applied to tokens in dim or dark conditions
-- **Smart Wall Detection**: Properly handles light blocked by walls and obstacles
 - **Complex Light Sources**: Support for angled lights, elevation differences, and rotating light sources
 
 ### **Enhanced Token Management**
 
-- **HUD Indicators**: A light-level icon on the token HUD, with the level named on hover
 - **Living Tokens Only**: Automatically filters to characters and NPCs with HP > 0
 - **Multi-Token Updates**: Efficiently processes lighting changes across entire scenes
-- **Effect Integration**: Seamlessly works with ActiveEffects and status condition systems
+
+**HUD Indicators:** A light-level icon on the token HUD, with the level named on hover.
 
 <img src="https://wiki.3deathsaves.com/tokenlightcondition/token-hud-indicator.png" alt="Token HUD light indicator" width="400">
+
+**Smart Wall Detection:** Properly handles light blocked by walls and obstacles.
+
 <img src="https://wiki.3deathsaves.com/tokenlightcondition/wall-blocked-light.png" alt="Light blocked by a wall" width="750">
+
+**Effect Integration:** Seamlessly works with ActiveEffects and status condition systems.
+
 <img src="https://wiki.3deathsaves.com/tokenlightcondition/actor-effect.png" alt="Dark Lighting effect on a sheet" width="500">
 
 ### **Advanced Lighting Features**
