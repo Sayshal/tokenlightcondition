@@ -1,8 +1,6 @@
-# Commissioned Module Update
-
-This module was updated as part of a commission. Any further updates beyond new core compatibility is subject to a monetary contribution. Issues for new features will be assigned a value based on complexity.
-
 # Token Light Condition
+
+![Token Light Condition Hero](https://wiki.3deathsaves.com/tokenlightcondition/hero.png)
 
 ![GitHub release](https://img.shields.io/github/v/release/Sayshal/tokenlightcondition?style=for-the-badge)
 ![GitHub Downloads (specific asset, all releases)](<https://img.shields.io/github/downloads/Sayshal/tokenlightcondition/module.zip?style=for-the-badge&logo=foundryvirtualtabletop&logoColor=white&logoSize=auto&label=Downloads%20(Total)&color=ff144f>)
@@ -14,6 +12,7 @@ This module was updated as part of a commission. Any further updates beyond new 
 ## Supporting The Module
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/sayshal)
+[![Discord](https://dcbadge.limes.pink/api/server/PzzUwU9gdz)](https://discord.gg/PzzUwU9gdz)
 
 ## Introduction
 
@@ -36,6 +35,10 @@ Token Light Condition automatically tracks each token's lighting condition (brig
 - **Living Tokens Only**: Automatically filters to characters and NPCs with HP > 0
 - **Multi-Token Updates**: Efficiently processes lighting changes across entire scenes
 - **Effect Integration**: Seamlessly works with ActiveEffects and status condition systems
+
+<img src="https://wiki.3deathsaves.com/tokenlightcondition/token-hud-indicator.png" alt="Token HUD light indicator" width="400">
+<img src="https://wiki.3deathsaves.com/tokenlightcondition/wall-blocked-light.png" alt="Light blocked by a wall" width="750">
+<img src="https://wiki.3deathsaves.com/tokenlightcondition/actor-effect.png" alt="Dark Lighting effect on a sheet" width="500">
 
 ### **Advanced Lighting Features**
 
@@ -177,6 +180,7 @@ Whether you're running a gritty dungeon crawl where every torch matters or an ep
 ## Support & Community
 
 - **GitHub Issues**: [Report bugs or request features](https://github.com/Sayshal/tokenlightcondition/issues)
+- **Discord**: [Join the community](https://discord.gg/PzzUwU9gdz)
 - **Ko-fi**: [Support continued development](https://ko-fi.com/sayshal)
 
 ## License
