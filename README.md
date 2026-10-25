@@ -184,7 +184,7 @@ Whether you're running a gritty dungeon crawl where every torch matters or an ep
 
 ## Support & Community
 
-- **GitHub Issues**: [Report bugs or request features](https://github.com/Sayshal/tokenlightcondition/issues)
+- **Report a bug or request a feature**: [3deathsaves.com/report](https://3deathsaves.com/report?module=tokenlightcondition)
 - **Discord**: [Join the community](https://discord.gg/PzzUwU9gdz)
 - **Ko-fi**: [Support continued development](https://ko-fi.com/sayshal)
 
