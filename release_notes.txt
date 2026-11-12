@@ -1,8 +1,13 @@
 ## Breaking Changes
 
-- Declare a dnd5e minimum of 5.3.3, verified 6.0.0. A world on a dnd5e release older than 5.3.3 can no longer install or enable the module.
+- Remove the Chris's Premades Effect Interface integration. dnd5e always uses the module's own Dim and Dark Lighting effects.
 
 ## Bug Fixes
 
-- Darkvision tokens now read unlit squares as dim from their active vision mode, even when the token's vision toggle is off.
-- The dark to dim promotion now requires a sight range above 0, so tokens with no vision range stay in dark.
+- Fix a Foundry v14 deprecation warning raised when a token's light level is cleared.
+- Refresh light levels when a tile is rotated.
+- Update light levels immediately after creating, editing or deleting walls, and after creating, deleting, moving or resizing tiles, instead of lagging one change behind.
+
+## Changes
+
+- Verify compatibility with dnd5e 6.1.0.

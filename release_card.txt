@@ -1,7 +1,7 @@
 ## Breaking Changes
 
-- Token Light Condition now declares a dnd5e minimum of 5.3.3, verified 6.0.0. A world on an older dnd5e release can no longer install or enable the module.
+- Token Light Condition no longer integrates with the Chris's Premades Effect Interface, so dnd5e always uses the module's own Dim and Dark Lighting effects.
 
 ## Bug Fixes
 
-- 2 bugs squashed
+- 3 bugs squashed
