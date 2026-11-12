@@ -11,34 +11,11 @@ export class EffectsManager {
     }
     const gameSystemId = game.system.id;
     ATLAS.log(3, `Initializing effects for system: ${gameSystemId}`);
+    if (gameSystemId !== 'pf2e') return;
     try {
-      switch (gameSystemId) {
-        case 'pf2e':
-          await this._initializePF2eEffects();
-          break;
-        case 'dnd5e':
-          await this._initializeDnd5eEffects();
-          break;
-        default:
-          ATLAS.log(3, `Using generic effects for system: ${gameSystemId}`);
-          break;
-      }
+      await this._initializePF2eEffects();
     } catch (error) {
       ATLAS.log(1, `Error initializing effects for system ${gameSystemId}:`, error);
-    }
-  }
-
-  /**
-   * Read Chris's Premades' effectInterface setting without assuming it is registered
-   * @returns {boolean} True when CPR is active and its effect interface is enabled
-   */
-  static _isCPREffectInterfaceEnabled() {
-    if (!game.modules.get('chris-premades')?.active) return false;
-    try {
-      return game.settings.get('chris-premades', 'effectInterface') === true;
-    } catch {
-      ATLAS.log(2, "Chris's Premades effectInterface setting not registered, skipping integration");
-      return false;
     }
   }
 
@@ -135,12 +112,6 @@ export class EffectsManager {
     }
   }
 
-  /** Initialize effects for D&D 5e system */
-  static async _initializeDnd5eEffects() {
-    ATLAS.log(3, 'Initializing D&D 5e lighting effects');
-    if (this._isCPREffectInterfaceEnabled()) await this._integrateCPREffects();
-  }
-
   /**
    * Find the world Item backing a PF2e lighting effect
    * @param {string} effectType - The type of effect ('dark' or 'dim')
@@ -197,17 +168,6 @@ export class EffectsManager {
    */
   static async _addGenericEffect(token, effectType) {
     ATLAS.log(3, `Creating ${effectType} effect for token: ${token.id}`);
-    if (this._isCPREffectInterfaceEnabled()) {
-      const cprEffect = this._findCPREffect(effectType);
-      if (cprEffect) {
-        const effectData = cprEffect.toObject();
-        delete effectData._id;
-        effectData.statuses = [effectType];
-        const effect = await ActiveEffect.create(effectData, { parent: token.actor });
-        ATLAS.log(3, `Created CPR ${effectType} effect: ${effect?.id}`);
-        return effect;
-      }
-    }
     const effectData = EFFECT_DATA.getEffectData(effectType);
     if (!effectData) throw new Error(`Invalid effect type: ${effectType}`);
     const effect = await ActiveEffect.create(effectData, { parent: token.actor });
@@ -244,45 +204,5 @@ export class EffectsManager {
       img: icon,
       flags: { [MODULE.ID]: { type: effectType } }
     };
-  }
-
-  /**
-   * Find Chris's Premades effect matching our effect type
-   * @param {string} effectType - The type of effect to find
-   * @returns {object|null} The matching CPR effect or null
-   */
-  static _findCPREffect(effectType) {
-    const cprItem = game.items.find((item) => item.flags['chris-premades']?.effectInterface);
-    if (!cprItem) {
-      ATLAS.log(3, 'CPR Effect Interface item not found');
-      return null;
-    }
-    const matchingEffect = cprItem.effects.find((effect) => effect.flags?.[MODULE.ID]?.type === effectType);
-    return matchingEffect || null;
-  }
-
-  /** Integrate with Chris's Premades Effect Interface */
-  static async _integrateCPREffects() {
-    ATLAS.log(3, "Integrating with Chris's Premades");
-    try {
-      const cprItem = game.items.find((item) => item.flags['chris-premades']?.effectInterface);
-      if (!cprItem) {
-        ATLAS.log(2, 'CPR Effect Interface not found, skipping integration');
-        return;
-      }
-      for (const effectType of ['dark', 'dim']) {
-        const existingEffect = cprItem.effects.find((effect) => effect.flags?.[MODULE.ID]?.type === effectType);
-        if (!existingEffect) {
-          const effectData = EFFECT_DATA.getEffectData(effectType);
-          if (effectData) {
-            await ActiveEffect.create(effectData, { parent: cprItem });
-            ATLAS.log(3, `Created CPR integration effect: ${effectType}`);
-          }
-        }
-      }
-      ATLAS.log(3, 'CPR integration complete');
-    } catch (error) {
-      ATLAS.log(1, 'CPR integration failed:', error);
-    }
   }
 }

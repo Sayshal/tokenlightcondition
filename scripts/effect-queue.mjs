@@ -40,9 +40,7 @@ export const effectQueue = {
       const sources = LightingCalculator.gatherLightSources();
       const results = await Promise.all(tokens.map((token) => this.processTokenEffects(token, sources)));
       const changes = results.filter((change) => change);
-      const updates = changes.map(({ token, newLevel }) =>
-        newLevel === null ? { _id: token.id, [`flags.${MODULE.ID}.-=lightLevel`]: null } : { _id: token.id, [`flags.${MODULE.ID}.lightLevel`]: newLevel }
-      );
+      const updates = changes.map(({ token, newLevel }) => ({ _id: token.id, [`flags.${MODULE.ID}.lightLevel`]: newLevel ?? _del }));
       const previousLevels = Object.fromEntries(changes.map(({ token, oldLevel }) => [token.id, oldLevel]));
       if (updates.length) await canvas.scene.updateEmbeddedDocuments('Token', updates, { [MODULE.ID]: previousLevels });
     } catch (error) {

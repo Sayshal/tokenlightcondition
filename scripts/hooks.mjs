@@ -9,7 +9,10 @@ import { emitsLight, isValidToken } from './utils.mjs';
 const WALL_KEYS = ['c', 'ds', 'light', 'sight', 'dir', 'threshold'];
 
 /** @type {string[]} Tile document keys that change how light reaches a token. */
-const TILE_KEYS = ['restrictions.light', 'elevation', 'x', 'y', 'width', 'height'];
+const TILE_KEYS = ['restrictions.light', 'elevation'];
+
+/** @type {string[]} Tile document keys that move the tile's mesh, which core repositions only on its next refresh. */
+const TILE_GEOMETRY_KEYS = ['x', 'y', 'width', 'height', 'rotation'];
 
 /** @type {number} How long an animated darkness transition is given to settle. */
 const DARKNESS_SETTLE_MS = 250;
@@ -64,26 +67,67 @@ function placeableRefreshHandler(hookName) {
 }
 
 /**
+ * Refresh every token once core has rebuilt light sources around a changed wall; core skips the rebuild when no light edge changed
+ * @returns {void}
+ */
+function onWallChange() {
+  if (!ATLAS.isPrimaryGM) return;
+  ATLAS.log(3, 'Wall changed, refreshing all token lighting once light sources re-initialize');
+  Hooks.once('initializeLightSources', () => debounceAllTokensCalculation());
+}
+
+/**
  * Refresh every token when a wall's light-relevant geometry changes
  * @param {object} _wallDocument - The updated WallDocument
  * @param {object} changes - The applied changes
  * @returns {void}
  */
 function onUpdateWall(_wallDocument, changes) {
-  if (!ATLAS.isPrimaryGM) return;
-  if (!WALL_KEYS.some((key) => key in changes)) return;
-  ATLAS.log(3, 'Wall changed, refreshing all token lighting');
-  debounceAllTokensCalculation();
+  if (WALL_KEYS.some((key) => key in changes)) onWallChange();
 }
 
 /**
- * Refresh every token when a tile's light-relevant geometry changes
- * @param {object} _tileDocument - The updated TileDocument
+ * Refresh every token after the next canvas render, once tile meshes carry their new canvas transforms
+ * @returns {void}
+ */
+function refreshAfterRender() {
+  canvas.app.ticker.addOnce(() => debounceAllTokensCalculation(), undefined, PIXI.UPDATE_PRIORITY.UTILITY);
+}
+
+/**
+ * Refresh every token once a tile's mesh has been drawn or repositioned
+ * @param {object} tileDocument - The created or moved TileDocument
+ * @returns {void}
+ */
+function refreshAfterTileRender(tileDocument) {
+  if (!ATLAS.isPrimaryGM) return;
+  ATLAS.log(3, 'Tile geometry changed, refreshing all token lighting once it renders');
+  const hookId = Hooks.on('refreshTile', (tile) => {
+    if (tile.document !== tileDocument) return;
+    Hooks.off('refreshTile', hookId);
+    refreshAfterRender();
+  });
+}
+
+/**
+ * Refresh every token once a deleted tile has left the canvas
+ * @returns {void}
+ */
+function onDeleteTile() {
+  if (!ATLAS.isPrimaryGM) return;
+  ATLAS.log(3, 'Tile deleted, refreshing all token lighting once it renders');
+  refreshAfterRender();
+}
+
+/**
+ * Refresh every token when a tile's light-relevant data changes
+ * @param {object} tileDocument - The updated TileDocument
  * @param {object} changes - The applied changes
  * @returns {void}
  */
-function onUpdateTile(_tileDocument, changes) {
+function onUpdateTile(tileDocument, changes) {
   if (!ATLAS.isPrimaryGM) return;
+  if (TILE_GEOMETRY_KEYS.some((key) => key in changes)) return refreshAfterTileRender(tileDocument);
   if (!TILE_KEYS.some((key) => foundry.utils.hasProperty(changes, key))) return;
   ATLAS.log(3, 'Tile changed, refreshing all token lighting');
   debounceAllTokensCalculation();
@@ -235,10 +279,10 @@ export function registerHooks() {
   Hooks.on('createAmbientLight', placeableRefreshHandler('createAmbientLight'));
   Hooks.on('updateAmbientLight', placeableRefreshHandler('updateAmbientLight'));
   Hooks.on('deleteAmbientLight', placeableRefreshHandler('deleteAmbientLight'));
-  Hooks.on('createWall', placeableRefreshHandler('createWall'));
-  Hooks.on('deleteWall', placeableRefreshHandler('deleteWall'));
-  Hooks.on('createTile', placeableRefreshHandler('createTile'));
-  Hooks.on('deleteTile', placeableRefreshHandler('deleteTile'));
+  Hooks.on('createWall', onWallChange);
+  Hooks.on('deleteWall', onWallChange);
+  Hooks.on('createTile', refreshAfterTileRender);
+  Hooks.on('deleteTile', onDeleteTile);
   Hooks.on('updateWall', onUpdateWall);
   Hooks.on('updateTile', onUpdateTile);
   Hooks.on('createToken', onCreateToken);
