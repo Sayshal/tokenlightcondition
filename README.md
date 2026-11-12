@@ -146,7 +146,6 @@ Fine-tune the system through comprehensive settings:
 
 ### Integration Support
 
-- **Chris's Premades**: Automatic integration with the Effect Interface system
 - **Levels/3D Maps**: Moderate support for elevation-based lighting (please report bugs)
 - **Tidy5e Sheets**: Compatible with enhanced character sheet layouts
 - **Wall Modules**: Works with advanced wall and terrain systems

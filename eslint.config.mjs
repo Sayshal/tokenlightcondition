@@ -30,7 +30,6 @@ export default [
         CALENDARIA: 'readonly',
         canvas: 'readonly',
         ChatMessage: 'readonly',
-        chrisPremades: 'readonly',
         Combat: 'readonly',
         Combatant: 'readonly',
         CompendiumCollection: 'readonly',
