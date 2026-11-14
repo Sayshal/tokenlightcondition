@@ -126,8 +126,7 @@ export class EffectsManager {
    * @param {object} token - The token to clear effects from
    */
   static async _clearPF2eEffects(token) {
-    const legacyNames = ['Dim', 'Dark'];
-    const itemsToRemove = token.actor.items.filter((item) => item.flags?.[MODULE.ID]?.type || legacyNames.includes(item.name));
+    const itemsToRemove = token.actor.items.filter((item) => item.flags?.[MODULE.ID]?.type || item.system?.slug?.startsWith('tokenlightcondition-'));
     if (itemsToRemove.length > 0) {
       const itemIds = itemsToRemove.map((item) => item.id);
       await token.actor.deleteEmbeddedDocuments('Item', itemIds);
@@ -154,6 +153,7 @@ export class EffectsManager {
    * @param {string} effectType - The type of effect ('dark' or 'dim')
    */
   static async _addPF2eEffect(token, effectType) {
+    if (!this._findPF2eWorldItem(effectType)) await this._initializePF2eEffects();
     const effectItem = this._findPF2eWorldItem(effectType);
     if (!effectItem) throw new Error(`PF2e effect item not found: ${effectType}`);
     await token.actor.createEmbeddedDocuments('Item', [effectItem.toObject()]);

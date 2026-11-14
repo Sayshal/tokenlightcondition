@@ -1,7 +1,7 @@
 import { MODULE } from './constants.mjs';
 import { EffectsManager } from './effects.mjs';
 import { LightingCalculator } from './lighting.mjs';
-import { isValidToken } from './utils.mjs';
+import { isValidToken, lightSourcesSettled } from './utils.mjs';
 
 /** Effect processing queue. */
 export const effectQueue = {
@@ -34,6 +34,7 @@ export const effectQueue = {
     this.processingActive = true;
     ATLAS.log(3, `Processing ${this.pendingOperations.size} queued operations`);
     try {
+      await lightSourcesSettled();
       const tokenIds = [...this.pendingOperations];
       this.pendingOperations.clear();
       const tokens = tokenIds.map((tokenId) => canvas.tokens.get(tokenId)).filter((token) => token && isValidToken(token));

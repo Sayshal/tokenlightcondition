@@ -1,7 +1,7 @@
 import { MODULE, SETTINGS } from './constants.mjs';
 import { effectQueue } from './effect-queue.mjs';
 import { LightingCalculator } from './lighting.mjs';
-import { isValidToken } from './utils.mjs';
+import { isValidToken, lightSourcesSettled } from './utils.mjs';
 
 /** @type {boolean} Whether a full-scene refresh is currently in flight. */
 let processingUpdate = false;
@@ -28,6 +28,7 @@ export async function calculateTokenLighting(token, position = null, sources = n
   const tokenDocument = token.document ?? token;
   ATLAS.log(3, `Calculating lighting for token: ${tokenDocument.id}`);
   try {
+    if (!sources) await lightSourcesSettled();
     const lightLevel = await LightingCalculator.resolveLightLevel(token, position, sources);
     const currentLightLevel = tokenDocument.getFlag(MODULE.ID, 'lightLevel') ?? null;
     if (currentLightLevel === lightLevel) effectQueue.pendingOperations.delete(tokenDocument.id);
@@ -45,6 +46,7 @@ export async function calculateTokenLighting(token, position = null, sources = n
  * @returns {Promise<void>} Resolves once every valid token has been queued
  */
 async function refreshAllTokenLighting() {
+  if (!ATLAS.isPrimaryGM) return;
   const activeScene = game.scenes.active;
   if (activeScene && canvas.scene !== activeScene) {
     ATLAS.log(2, `Viewing ${canvas.scene?.name}; lighting can only be computed for the drawn scene, so ${activeScene.name} is not refreshed`);
@@ -56,6 +58,7 @@ async function refreshAllTokenLighting() {
   }
   warnedSceneId = null;
   ATLAS.log(3, 'Refreshing lighting for all tokens');
+  await lightSourcesSettled();
   const validTokens = canvas.tokens.placeables.filter((token) => isValidToken(token));
   const sources = LightingCalculator.gatherLightSources();
   const promises = validTokens.map((token) => calculateTokenLighting(token, null, sources));

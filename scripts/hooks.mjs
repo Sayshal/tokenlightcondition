@@ -67,11 +67,12 @@ function placeableRefreshHandler(hookName) {
 }
 
 /**
- * Refresh every token once core has rebuilt light sources around a changed wall; core skips the rebuild when no light edge changed
+ * Refresh every token once core has rebuilt light sources around a changed wall; skipped when core queued no rebuild
  * @returns {void}
  */
 function onWallChange() {
   if (!ATLAS.isPrimaryGM) return;
+  if (!canvas.perception.renderFlags.has('initializeLightSources')) return;
   ATLAS.log(3, 'Wall changed, refreshing all token lighting once light sources re-initialize');
   Hooks.once('initializeLightSources', () => debounceAllTokensCalculation());
 }
@@ -95,16 +96,18 @@ function refreshAfterRender() {
 }
 
 /**
- * Refresh every token once a tile's mesh has been drawn or repositioned
- * @param {object} tileDocument - The created or moved TileDocument
+ * Refresh every token once a created or moved placeable has been drawn, so its mesh or light source is current
+ * @param {object} placeableDocument - The created or moved Tile or AmbientLight document
  * @returns {void}
  */
-function refreshAfterTileRender(tileDocument) {
+function refreshAfterPlaceableRender(placeableDocument) {
   if (!ATLAS.isPrimaryGM) return;
-  ATLAS.log(3, 'Tile geometry changed, refreshing all token lighting once it renders');
-  const hookId = Hooks.on('refreshTile', (tile) => {
-    if (tile.document !== tileDocument) return;
-    Hooks.off('refreshTile', hookId);
+  if (placeableDocument.parent !== canvas.scene) return;
+  const hookName = `refresh${placeableDocument.documentName}`;
+  ATLAS.log(3, `${placeableDocument.documentName} drawn or moved, refreshing all token lighting once it renders`);
+  const hookId = Hooks.on(hookName, (placeable) => {
+    if (placeable.document !== placeableDocument) return;
+    Hooks.off(hookName, hookId);
     refreshAfterRender();
   });
 }
@@ -127,7 +130,7 @@ function onDeleteTile() {
  */
 function onUpdateTile(tileDocument, changes) {
   if (!ATLAS.isPrimaryGM) return;
-  if (TILE_GEOMETRY_KEYS.some((key) => key in changes)) return refreshAfterTileRender(tileDocument);
+  if (TILE_GEOMETRY_KEYS.some((key) => key in changes)) return refreshAfterPlaceableRender(tileDocument);
   if (!TILE_KEYS.some((key) => foundry.utils.hasProperty(changes, key))) return;
   ATLAS.log(3, 'Tile changed, refreshing all token lighting');
   debounceAllTokensCalculation();
@@ -276,12 +279,12 @@ export async function onReady() {
 export function registerHooks() {
   Hooks.on('canvasReady', onCanvasReady);
   Hooks.on('canvasTearDown', onCanvasTearDown);
-  Hooks.on('createAmbientLight', placeableRefreshHandler('createAmbientLight'));
+  Hooks.on('createAmbientLight', refreshAfterPlaceableRender);
   Hooks.on('updateAmbientLight', placeableRefreshHandler('updateAmbientLight'));
   Hooks.on('deleteAmbientLight', placeableRefreshHandler('deleteAmbientLight'));
   Hooks.on('createWall', onWallChange);
   Hooks.on('deleteWall', onWallChange);
-  Hooks.on('createTile', refreshAfterTileRender);
+  Hooks.on('createTile', refreshAfterPlaceableRender);
   Hooks.on('deleteTile', onDeleteTile);
   Hooks.on('updateWall', onUpdateWall);
   Hooks.on('updateTile', onUpdateTile);

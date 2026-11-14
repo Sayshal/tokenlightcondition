@@ -53,3 +53,12 @@ export function isValidToken(token) {
   if (!token?.actor) return false;
   return VALID_ACTOR_TYPES.includes(token.actor.type);
 }
+
+/**
+ * Wait for core to finish a pending light-source rebuild, so lighting is never derived from stale sources
+ * @returns {Promise<void>} Resolves once no rebuild is queued
+ */
+export async function lightSourcesSettled() {
+  if (!canvas.perception.renderFlags.has('initializeLightSources')) return;
+  await new Promise((resolve) => Hooks.once('initializeLightSources', resolve));
+}
