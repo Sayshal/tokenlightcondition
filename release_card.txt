@@ -1,7 +1,3 @@
-## Breaking Changes
-
-- Token Light Condition no longer integrates with the Chris's Premades Effect Interface, so dnd5e always uses the module's own Dim and Dark Lighting effects.
-
 ## Bug Fixes
 
-- 3 bugs squashed
+- 5 bugs squashed

@@ -1,13 +1,7 @@
-## Breaking Changes
-
-- Remove the Chris's Premades Effect Interface integration. dnd5e always uses the module's own Dim and Dark Lighting effects.
-
 ## Bug Fixes
 
-- Fix a Foundry v14 deprecation warning raised when a token's light level is cleared.
-- Refresh light levels when a tile is rotated.
-- Update light levels immediately after creating, editing or deleting walls, and after creating, deleting, moving or resizing tiles, instead of lagging one change behind.
-
-## Changes
-
-- Verify compatibility with dnd5e 6.1.0.
+- Calculate light levels only after Foundry rebuilds light sources, so creating a light or a batch of light, wall and token changes no longer leaves a token on its old level.
+- On Pathfinder 2e, recreate a deleted Dim Lighting or Dark Lighting world item the next time a token needs it, instead of leaving the token with no effect.
+- On Pathfinder 2e, stop deleting actor items named Dim or Dark that the module did not create.
+- Stop the refresh-all API from warning players and non-primary GMs that the active scene is not drawn.
+- Stop wall and tile changes from leaving pending refresh listeners behind.
