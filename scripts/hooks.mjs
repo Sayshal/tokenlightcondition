@@ -96,6 +96,41 @@ function refreshAfterRender() {
 }
 
 /**
+ * Whether an Active Effect overrides token light
+ * @param {object} effect - The ActiveEffect document
+ * @returns {boolean} True when any change targets a token.light. key
+ */
+function changesTokenLight(effect) {
+  return effect.system.changes.some((change) => change.key.startsWith('token.light.'));
+}
+
+/**
+ * Refresh every token when an item carrying a token light effect is created, changed or deleted, since its embedded effects fire no hooks of their own
+ * @param {object} item - The Item document
+ * @returns {void}
+ */
+function onItemChange(item) {
+  if (!ATLAS.isPrimaryGM || !item.parent) return;
+  if (!item.effects.some(changesTokenLight)) return;
+  ATLAS.log(3, `Item "${item.name}" carries a token light effect, refreshing all token lighting once it renders`);
+  refreshAfterRender();
+}
+
+/**
+ * Refresh every token when an Active Effect that overrides token light is created, changed or deleted
+ * @param {object} effect - The ActiveEffect document
+ * @param {object} [changes] - The applied changes, for updates only
+ * @returns {void}
+ */
+function onActiveEffectChange(effect, changes) {
+  if (!ATLAS.isPrimaryGM) return;
+  const touchesLight = changesTokenLight(effect) || 'changes' in (changes?.system ?? {});
+  if (!touchesLight) return;
+  ATLAS.log(3, `Active Effect "${effect.name}" changes token light, refreshing all token lighting once it renders`);
+  refreshAfterRender();
+}
+
+/**
  * Refresh every token once a created or moved placeable has been drawn, so its mesh or light source is current
  * @param {object} placeableDocument - The created or moved Tile or AmbientLight document
  * @returns {void}
@@ -293,6 +328,12 @@ export function registerHooks() {
   Hooks.on('moveToken', onMoveToken);
   Hooks.on('deleteToken', onDeleteToken);
   Hooks.on('updateActor', onUpdateActor);
+  Hooks.on('createActiveEffect', (effect) => onActiveEffectChange(effect));
+  Hooks.on('updateActiveEffect', onActiveEffectChange);
+  Hooks.on('deleteActiveEffect', (effect) => onActiveEffectChange(effect));
+  Hooks.on('createItem', onItemChange);
+  Hooks.on('updateItem', onItemChange);
+  Hooks.on('deleteItem', onItemChange);
   Hooks.on('updateScene', onUpdateScene);
   Hooks.on('renderTokenHUD', onRenderTokenHUD);
   Hooks.on('updateToken', onUpdateTokenLightLevel);
